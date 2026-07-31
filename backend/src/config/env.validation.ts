@@ -7,6 +7,7 @@ export const envValidationSchema = Joi.object({
     DIRECT_URL: Joi.string().required(),
     SUPABASE_URL: Joi.string().required(),
     SUPABASE_JWKS_URL: Joi.string().required(),
+    SUPABASE_PUBLISHABLE_KEY: Joi.string().required(),
     GEMINI_API_KEY: Joi.string().required(),
     GEMINI_MODEL: Joi.string().required(),
     AI_THROTTLE_LIMIT: Joi.number().default(5),
