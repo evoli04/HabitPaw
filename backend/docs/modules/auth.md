@@ -1,0 +1,41 @@
+# Module: auth
+
+`src/auth/` — verifies Supabase-issued JWTs; provisions local `Profile` rows on first sight of a user; exposes one dev-convenience login endpoint. No production register/login endpoints — see [../../Architecture.md#auth-flow](../../Architecture.md#auth-flow).
+
+## Files
+
+| File | Role |
+|---|---|
+| `auth.module.ts` | registers `PassportModule`, `AuthController`, `AuthService`, `JwtStrategy`; registers `JwtAuthGuard` as the **global** guard (`APP_GUARD`) — every route requires auth unless `@Public()` |
+| `auth.service.ts` | `ensureProfile(userId, name?)` — JIT upsert of a `Profile` row; `login(dto)` — proxies Supabase password-grant auth |
+| `auth.controller.ts` | `POST /api/auth/login` (`@Public()`) — dev/testing only |
+| `strategies/jwt.strategy.ts` | Passport strategy: verifies bearer JWT via Supabase JWKS (ES256), calls `ensureProfile`, returns `AuthenticatedUser` |
+| `guards/jwt-auth.guard.ts` | extends `AuthGuard('jwt')`; short-circuits to allow when `@Public()` metadata is present on the handler or class |
+| `dto/login.dto.ts` | `{ email, password }` request body for the dev login endpoint |
+| `dto/login-response.dto.ts` | typed Supabase token response shape (`access_token`, `refresh_token`, `expires_in`, `token_type`, `user`) |
+
+## `JwtStrategy` details
+
+- Extracts bearer token from `Authorization` header (`ExtractJwt.fromAuthHeaderAsBearerToken()`).
+- `algorithms: ['ES256']` — Supabase's default asymmetric signing algorithm.
+- Signing key resolved at request time via `jwks-rsa`'s `passportJwtSecret` against `SUPABASE_JWKS_URL` (read from raw `process.env`, not `ConfigService` — see [Architecture.md known gaps](../../Architecture.md#known-gaps)), cached, rate-limited to 5 req/min.
+- **Does not check `iss`/`aud` claims** — signature validity against the project's JWKS is the only check.
+- `validate(payload)` reads `sub` (Supabase user id), `email`, `user_metadata.name`; calls `authService.ensureProfile(sub, name)`; returns `{ id: sub, email }`, which Passport attaches to `request.user`.
+
+## `AuthService.login()` (dev endpoint backing)
+
+Calls `POST {SUPABASE_URL}/auth/v1/token?grant_type=password` with `apikey: SUPABASE_PUBLISHABLE_KEY` and the email/password body. On a non-2xx response throws `UnauthorizedException('Invalid Supabase credentials')`; on success returns the token payload typed as `LoginResponseDto`. Used only by `POST /api/auth/login` — **not** part of the token-verification path used by every other request.
+
+## Routes
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | `@Public()` | dev/testing convenience — get a token to paste into Swagger's Authorize dialog. Real clients should use the Supabase SDK directly. |
+
+## Related decorators/interfaces (in `common`, not `auth`)
+
+- `@Public()` — `src/common/decorators/public.decorator.ts`, sets `isPublic` metadata consumed by `JwtAuthGuard`.
+- `@CurrentUser()` — `src/common/decorators/current-user.decorator.ts`, reads `request.user`.
+- `AuthenticatedUser` — `src/common/interfaces/authenticated-user.interface.ts`, `{ id: string; email: string }`.
+
+See [common.md](common.md) for full detail on these.
