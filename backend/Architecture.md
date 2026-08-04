@@ -15,7 +15,8 @@ Habit tracker API with a cat-mood gamification layer. NestJS backend, Supabase f
 | Config | `@nestjs/config` + Joi | `src/config/env.validation.ts` |
 | API docs | `@nestjs/swagger` (OpenAPI 3) | served at `/api/docs` |
 | Auth strategy | Passport (`passport-jwt` + `jwks-rsa`) | verifies against Supabase's JWKS endpoint |
-| Future | `@google/generative-ai` (Gemini) | dependency present, no consuming module yet |
+| AI | `@google/genai` (Gemini, AI Studio) | habit suggestions — see [docs/modules/ai.md](docs/modules/ai.md) |
+| Rate limiting | `@nestjs/throttler` | applied to the AI routes only |
 
 ## Dev commands
 
@@ -70,6 +71,7 @@ This endpoint is not meant for production clients — it exists solely so the wh
 
 - [docs/modules/auth.md](docs/modules/auth.md) — JWT verification, guard, dev login endpoint
 - [docs/modules/habits.md](docs/modules/habits.md) — habit CRUD + daily completion tracking
+- [docs/modules/ai.md](docs/modules/ai.md) — Gemini habit suggestions, model/quota troubleshooting
 - [docs/modules/prisma.md](docs/modules/prisma.md) — global Prisma client module
 - [docs/modules/common.md](docs/modules/common.md) — `@Public()`/`@CurrentUser()`, health check
 - [docs/modules/config.md](docs/modules/config.md) — env validation
@@ -88,10 +90,10 @@ Validated in `src/config/env.validation.ts` (Joi). Template in `.env.example`.
 | `SUPABASE_URL` | yes | — | Supabase project base URL, used by the dev login endpoint |
 | `SUPABASE_JWKS_URL` | yes | — | JWKS endpoint the JWT strategy verifies tokens against |
 | `SUPABASE_PUBLISHABLE_KEY` | yes | — | Supabase public API key, sent as `apikey` header when proxying login |
-| `GEMINI_API_KEY` | yes | — | for the not-yet-built AI recommendations feature |
-| `GEMINI_MODEL` | yes | — | ditto |
-| `AI_THROTTLE_LIMIT` | no | `5` | ditto (rate limiting, not wired up yet) |
-| `AI_THROTTLE_TTL_MS` | no | `3600000` | ditto |
+| `GEMINI_API_KEY` | yes | — | Google AI Studio key used by the AI module |
+| `GEMINI_MODEL` | yes | — | must be a model the key can still call — retired ids 404, see [docs/modules/ai.md](docs/modules/ai.md#troubleshooting) |
+| `AI_THROTTLE_LIMIT` | no | `5` | requests per window on `/api/ai/*` |
+| `AI_THROTTLE_TTL_MS` | no | `3600000` | throttle window in ms |
 | `CORS_ORIGIN` | no | `*` | **currently unused** — see [Known gaps](#known-gaps), `app.enableCors()` is never called |
 | `SWAGGER_ENABLED` | no | `true` | gates Swagger setup in `main.ts` |
 
@@ -102,9 +104,9 @@ Validated in `src/config/env.validation.ts` (Joi). Template in `.env.example`.
 Tracked here instead of re-discovered each session:
 
 - **CORS never enabled.** `CORS_ORIGIN` is validated but `app.enableCors()` is never called in `main.ts` — dead config.
-- **Helmet/Throttler installed, unused.** Both are dependencies; neither `helmet()` nor `ThrottlerModule` is wired into the app. Likely intended for the future AI-recommendation rate limiting.
+- **Helmet installed, unused.** `helmet` is a dependency but `helmet()` is never called in `main.ts`. (`ThrottlerModule` is now wired — but only inside `AiModule`, see [docs/modules/ai.md](docs/modules/ai.md).)
 - **JWT strategy doesn't validate `iss`/`aud`.** `src/auth/strategies/jwt.strategy.ts` only checks the signature (ES256, via JWKS) — any token signed by the same Supabase project's key is accepted regardless of issuer/audience claims.
 - **`PrismaService` connect/disconnect not awaited.** `onModuleInit`/`onModuleDestroy` call `this.$connect()`/`this.$disconnect()` without `await`, despite being `async` methods.
 - **Root `/` route (`AppController.getHello`) has no `@Public()`.** It's excluded from Swagger (`@ApiExcludeController()`) but not exempted from the global `JwtAuthGuard`, so it likely 401s — leftover Nest starter boilerplate, not otherwise used.
-- **`cats` and AI-recommendation features are modeled, not implemented.** `Cat` and `AiRecommendation` exist in `prisma/schema.prisma` (see [docs/database.md](docs/database.md)) but have no NestJS module/controller/service yet.
+- **`cats` is modeled, not implemented.** `Cat` exists in `prisma/schema.prisma` (see [docs/database.md](docs/database.md)) but has no NestJS module/controller/service. The root prototype `petStatusMotor.js` writes `mood`/`health`/`dialogue`/`urgent_task` columns that the `Cat` model does not have — schema and prototype disagree. (`AiRecommendation` is now consumed by [docs/modules/ai.md](docs/modules/ai.md).)
 - **Config access is inconsistent.** Most of the app reads env vars via injected `ConfigService`; `jwt.strategy.ts` and `main.ts`'s port read raw `process.env` instead. Functionally fine (Joi validates at startup either way) but worth normalizing eventually.

@@ -7,13 +7,18 @@ import { ConfigModule } from '@nestjs/config';
 import { envValidationSchema } from './config/env.validation';
 import { HealthController } from './common/health/health.controller';
 import { HabitsModule } from './habits/habits.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
     HabitsModule,
-    ConfigModule.forRoot({ validationSchema: envValidationSchema, isGlobal: true }),
+    AiModule,
+    ConfigModule.forRoot({
+      validationSchema: envValidationSchema,
+      isGlobal: true,
+    }),
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

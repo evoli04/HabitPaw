@@ -2,9 +2,12 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Root .env wins; backend/.env fills in whatever it doesn't define.
+dotenv.config({ path: ['.env', 'backend/.env'] });
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, vertexai: false });
 
 const HabitSchema = z.object({
   suggestions: z.array(
@@ -26,7 +29,7 @@ async function getHabitSuggestions(goal, duration, level) {
     Bu bilgilere uygun, kullanıcıyı sıkmayacak en fazla 3 tane alışkanlık öner.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: MODEL,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

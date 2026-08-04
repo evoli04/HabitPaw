@@ -11,7 +11,7 @@
 | `auth.controller.ts` | `POST /api/auth/login` (`@Public()`) — dev/testing only |
 | `strategies/jwt.strategy.ts` | Passport strategy: verifies bearer JWT via Supabase JWKS (ES256), calls `ensureProfile`, returns `AuthenticatedUser` |
 | `guards/jwt-auth.guard.ts` | extends `AuthGuard('jwt')`; short-circuits to allow when `@Public()` metadata is present on the handler or class |
-| `dto/login.dto.ts` | `{ email, password }` request body for the dev login endpoint |
+| `dto/login.dto.ts` | `{ email, password }` request body for the dev login endpoint. `password` is only checked non-empty — it previously required 6+ chars, which 400'd accounts that Supabase itself accepts (password policy belongs to signup, which Supabase owns). |
 | `dto/login-response.dto.ts` | typed Supabase token response shape (`access_token`, `refresh_token`, `expires_in`, `token_type`, `user`) |
 
 ## `JwtStrategy` details
