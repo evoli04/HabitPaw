@@ -1,13 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ minLength: 6 })
+  // No length rule here: password policy is Supabase's (at signup). Enforcing one
+  // on login only rejects accounts that Supabase itself already accepts.
+  @ApiProperty()
   @IsString()
-  @MinLength(6)
+  @IsNotEmpty()
   password: string;
 }

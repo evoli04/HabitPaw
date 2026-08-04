@@ -64,9 +64,11 @@ Gamification "pet" entity — 1:1 with `Profile`. No NestJS module consumes this
 
 Cat-mood thresholds (product decision, not yet coded anywhere): daily habit completion `≥50% → happy`, `1–49% → neutral`, `0%` or no habits scheduled `→ sad/neutral`.
 
-### `AiRecommendation` (table `ai_recommendations`) — **modeled, not yet implemented**
+### `AiRecommendation` (table `ai_recommendations`)
 
-Intended for Gemini-generated habit suggestions (`@google/generative-ai` is a dependency; `GEMINI_API_KEY`/`GEMINI_MODEL`/`AI_THROTTLE_LIMIT`/`AI_THROTTLE_TTL_MS` are already validated in `env.validation.ts`). No NestJS module consumes this yet.
+Gemini-generated habit suggestions, written by `AiService.suggestHabits` and read back by
+`AiService.acceptSuggestions` — see [modules/ai.md](modules/ai.md). One row per generation; rows are
+kept after acceptance as the audit trail of what the model proposed.
 
 | Field | Type | Notes |
 |---|---|---|
