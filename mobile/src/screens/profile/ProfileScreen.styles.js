@@ -1,0 +1,49 @@
+import { StyleSheet } from 'react-native';
+import { radii, spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+
+export const createStyles = (colors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
+  hero: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
+  name: { ...typography.title, color: colors.textPrimary, textAlign: 'center' },
+  email: { ...typography.body, color: colors.textSecondary },
+  info: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  infoTitle: { ...typography.heading, color: colors.textPrimary },
+  infoText: { ...typography.body, color: colors.textSecondary },
+  themeOptions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  themeOption: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.inputBackground,
+  },
+  themeOptionSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  radio: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioSelected: { borderColor: colors.primary },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  themeOptionText: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
+  themeOptionTextSelected: { color: colors.primary },
+});
