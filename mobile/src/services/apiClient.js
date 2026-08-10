@@ -101,7 +101,7 @@ export async function apiRequest(path, options = {}) {
         'İstek zaman aşımına uğradı. Lütfen bağlantınızı kontrol edip tekrar deneyin.',
         { kind: 'timeout' },
       );
-      if (__DEV__) console.warn(`[API timeout] ${options.method ?? 'GET'} ${path}`);
+      if (__DEV__) console.info(`[API timeout] ${options.method ?? 'GET'} ${path}`);
       throw timeoutError;
     }
     if (error instanceof TypeError) {
@@ -109,11 +109,11 @@ export async function apiRequest(path, options = {}) {
         'Sunucuya ulaşılamadı. İnternet bağlantınızı ve API adresini kontrol edin.',
         { kind: 'network' },
       );
-      if (__DEV__) console.warn(`[API network] ${options.method ?? 'GET'} ${path}`);
+      if (__DEV__) console.info(`[API network] ${options.method ?? 'GET'} ${path}`);
       throw networkError;
     }
     if (__DEV__) {
-      console.warn(`[API ${error.kind ?? 'unknown'}] ${options.method ?? 'GET'} ${path}`, {
+      console.info(`[API ${error.kind ?? 'unknown'}] ${options.method ?? 'GET'} ${path}`, {
         status: error.status ?? null,
         message: error.message,
       });

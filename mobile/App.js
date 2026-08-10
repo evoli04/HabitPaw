@@ -6,6 +6,8 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 import { useAppTheme } from './src/hooks/useAppTheme';
 import LoadingScreen from './src/components/common/LoadingScreen';
 import RootNavigator from './src/navigation/RootNavigator';
+import { DialogProvider } from './src/contexts/DialogContext';
+import { CoinProvider } from './src/contexts/CoinContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +26,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <DialogProvider>
+          <CoinProvider>
+            <AppContent />
+          </CoinProvider>
+        </DialogProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

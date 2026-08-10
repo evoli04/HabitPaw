@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import ErrorState from '../../components/common/ErrorState';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import CatCharacter from '../../components/cat/CatCharacter';
 import CatMoodMessage from '../../components/cat/CatMoodMessage';
+import CelebrationPopup from '../../components/cat/CelebrationPopup';
 import DailyProgressCard from '../../components/habits/DailyProgressCard';
 import HabitCard from '../../components/habits/HabitCard';
 import { ROUTES } from '../../constants/routes';
@@ -16,6 +17,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { completeHabit, getTodayHabits, uncompleteHabit } from '../../services/habitService';
 import { getCatMood } from '../../utils/catMood';
 import { useAppTheme } from '../../hooks/useAppTheme';
+import { getProfile } from '../../services/profileService';
+import { syncHabitReminder } from '../../services/notificationService';
+import { getDisplayName } from '../../utils/displayName';
+import { useCoins } from '../../contexts/CoinContext';
 import { layout, spacing } from '../../theme/spacing';
 import { createStyles } from './HomeScreen.styles';
 
@@ -30,11 +35,19 @@ export default function HomeScreen({ navigation }) {
   const scrollBottomPadding = layout.tabBarHeight + tabOffset + spacing.lg;
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState(null);
+  const [celebration, setCelebration] = useState(null);
+  const closeCelebration = useCallback(() => setCelebration(null), []);
+  const [claimingReward, setClaimingReward] = useState(false);
+  const { canClaim, claimReward } = useCoins();
   const todayQuery = useQuery({ queryKey: ['habits', 'today'], queryFn: getTodayHabits });
+  const profileQuery = useQuery({ queryKey: ['profile'], queryFn: getProfile });
   const mutation = useMutation({
     mutationFn: ({ id, completed }) => (completed ? uncompleteHabit(id) : completeHabit(id)),
     onSettled: () => setActiveId(null),
-    onSuccess: async () => {
+    onSuccess: async (_response, variables) => {
+      if (!variables.completed && canClaim(variables.id)) {
+        setCelebration({ id: variables.id, title: variables.title });
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['habits', 'today'] }),
         queryClient.invalidateQueries({ queryKey: ['habits'] }),
@@ -43,9 +56,14 @@ export default function HomeScreen({ navigation }) {
   });
 
   const habits = todayQuery.data ?? [];
+
+  useEffect(() => {
+    if (!todayQuery.data) return;
+    Promise.all(todayQuery.data.map((habit) => syncHabitReminder(habit).catch(() => false)));
+  }, [todayQuery.data]);
   const completed = habits.filter((habit) => habit.completedToday).length;
   const mood = getCatMood(completed, habits.length);
-  const displayName = user?.user_metadata?.name?.trim() || 'Dostum';
+  const displayName = getDisplayName(user, profileQuery.data);
   const date = new Intl.DateTimeFormat('tr-TR', {
     weekday: 'long',
     day: 'numeric',
@@ -54,13 +72,31 @@ export default function HomeScreen({ navigation }) {
 
   const toggle = (habit) => {
     setActiveId(habit.id);
-    mutation.mutate({ id: habit.id, completed: habit.completedToday });
+    mutation.mutate({ id: habit.id, completed: habit.completedToday, title: habit.title });
+  };
+
+  const collectReward = async () => {
+    if (!celebration) return;
+    setClaimingReward(true);
+    try {
+      await claimReward(celebration.id);
+      closeCelebration();
+    } finally {
+      setClaimingReward(false);
+    }
   };
 
   if (todayQuery.isLoading) return <LoadingScreen message="Bugünün alışkanlıkları hazırlanıyor…" />;
 
   return (
     <AppBackground>
+      <CelebrationPopup
+        visible={Boolean(celebration)}
+        habitTitle={celebration?.title}
+        claiming={claimingReward}
+        onClaim={collectReward}
+        onClose={closeCelebration}
+      />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: scrollBottomPadding }]}

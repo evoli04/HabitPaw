@@ -1,4 +1,4 @@
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppButton from '../../components/common/AppButton';
@@ -10,14 +10,18 @@ import { ROUTES } from '../../constants/routes';
 import { deleteHabit, getHabitById } from '../../services/habitService';
 import { formatReminderTime } from '../../utils/timeUtils';
 import { styles } from './HabitDetailScreen.styles';
+import { cancelHabitReminder } from '../../services/notificationService';
+import { useAppDialog } from '../../contexts/DialogContext';
 
 export default function HabitDetailScreen({ route, navigation }) {
   const { id } = route.params;
+  const { showDialog } = useAppDialog();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ['habits', id], queryFn: () => getHabitById(id) });
   const removeMutation = useMutation({
     mutationFn: () => deleteHabit(id),
     onSuccess: async () => {
+      await cancelHabitReminder(id);
       queryClient.removeQueries({ queryKey: ['habits', id] });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['habits'] }),
@@ -25,18 +29,19 @@ export default function HabitDetailScreen({ route, navigation }) {
       ]);
       navigation.goBack();
     },
-    onError: (error) => Alert.alert('Silinemedi', error.message),
+    onError: (error) => showDialog({ title: 'Silinemedi', message: error.message, tone: 'danger' }),
   });
 
   const confirmDelete = () => {
-    Alert.alert(
-      'Alışkanlığı sil',
-      'Bu alışkanlık ve tamamlama kayıtları kalıcı olarak silinecek. Emin misin?',
-      [
+    showDialog({
+      title: 'Alışkanlığı sil',
+      message: 'Bu alışkanlık ve tamamlama kayıtları kalıcı olarak silinecek. Emin misin?',
+      tone: 'danger',
+      actions: [
         { text: 'Vazgeç', style: 'cancel' },
         { text: 'Sil', style: 'destructive', onPress: () => removeMutation.mutate() },
       ],
-    );
+    });
   };
 
   if (query.isLoading) return <LoadingScreen message="Alışkanlık yükleniyor…" />;

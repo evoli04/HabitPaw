@@ -25,6 +25,8 @@ export default function HabitForm({
   serverError,
   onSubmit,
   existingReminder = '',
+  onReminderFocus,
+  onReminderBlur,
 }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -124,7 +126,11 @@ export default function HabitForm({
             placeholder="08:00"
             keyboardType="numbers-and-punctuation"
             maxLength={5}
-            onBlur={onBlur}
+            onBlur={() => {
+              onBlur();
+              onReminderBlur?.();
+            }}
+            onFocus={onReminderFocus}
             onChangeText={onChange}
             value={value}
             error={errors.reminderTime?.message}

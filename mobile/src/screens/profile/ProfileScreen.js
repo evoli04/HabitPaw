@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppButton from '../../components/common/AppButton';
 import AppBackground from '../../components/common/AppBackground';
@@ -7,6 +8,9 @@ import CatCharacter from '../../components/cat/CatCharacter';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { createStyles } from './ProfileScreen.styles';
+import { useAppDialog } from '../../contexts/DialogContext';
+import { getProfile } from '../../services/profileService';
+import { getDisplayName } from '../../utils/displayName';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'Sistem' },
@@ -15,17 +19,20 @@ const THEME_OPTIONS = [
 ];
 
 export default function ProfileScreen() {
+  const { showDialog } = useAppDialog();
   const { user, signOut } = useAuth();
   const { colors, preference, setThemePreference } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [loading, setLoading] = useState(false);
+  const profileQuery = useQuery({ queryKey: ['profile'], queryFn: getProfile });
+  const displayName = getDisplayName(user, profileQuery.data);
 
   const logout = async () => {
     setLoading(true);
     try {
       await signOut();
     } catch (error) {
-      Alert.alert('Çıkış yapılamadı', error.message);
+      showDialog({ title: 'Çıkış yapılamadı', message: error.message, tone: 'danger' });
     } finally {
       setLoading(false);
     }
@@ -37,7 +44,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <CatCharacter mood="happy" size="small" />
-          <Text style={styles.name}>{user?.user_metadata?.name || 'HabitPaw kullanıcısı'}</Text>
+          <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{user?.email || 'E-posta bulunamadı'}</Text>
         </View>
         <View style={styles.info}>
