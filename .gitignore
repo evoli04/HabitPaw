@@ -46,6 +46,10 @@ coverage
 .env.production.local
 .env.local
 
+# Expo
+.expo/
+expo-env.d.ts
+
 # temp directory
 .temp
 .tmp
