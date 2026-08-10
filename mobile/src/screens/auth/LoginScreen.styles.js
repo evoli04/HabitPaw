@@ -1,0 +1,25 @@
+import { StyleSheet } from 'react-native';
+import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import { radii } from '../../theme/spacing';
+import { shadows } from '../../theme/shadows';
+
+export const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: 'transparent' },
+  flex: { flex: 1 },
+  content: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
+  hero: { alignItems: 'center', gap: spacing.xs },
+  title: { ...typography.title, color: colors.textPrimary, textAlign: 'center' },
+  subtitle: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  glassCard: {
+    ...shadows.card,
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  error: { ...typography.caption, color: colors.danger },
+});
