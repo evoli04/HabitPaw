@@ -10,4 +10,5 @@ export const ROUTES = {
   ADD_HABIT: 'AddHabit',
   HABIT_DETAIL: 'HabitDetail',
   EDIT_HABIT: 'EditHabit',
+  SHOP: 'Shop',
 };

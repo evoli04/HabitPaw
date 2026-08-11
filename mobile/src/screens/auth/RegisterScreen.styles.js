@@ -1,11 +1,10 @@
 import { StyleSheet } from 'react-native';
-import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { radii } from '../../theme/spacing';
 import { shadows } from '../../theme/shadows';
 
-export const styles = StyleSheet.create({
+export const createStyles = (colors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: 'transparent' },
   flex: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
@@ -17,9 +16,9 @@ export const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
     borderRadius: radii.lg,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
+    borderColor: colors.border,
   },
   error: { ...typography.caption, color: colors.danger },
 });

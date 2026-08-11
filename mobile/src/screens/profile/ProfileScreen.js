@@ -11,6 +11,10 @@ import { createStyles } from './ProfileScreen.styles';
 import { useAppDialog } from '../../contexts/DialogContext';
 import { getProfile } from '../../services/profileService';
 import { getDisplayName } from '../../utils/displayName';
+import { Ionicons } from '@expo/vector-icons';
+import CoinIcon from '../../components/coins/CoinIcon';
+import { ROUTES } from '../../constants/routes';
+import { useCoins } from '../../contexts/CoinContext';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'Sistem' },
@@ -18,7 +22,7 @@ const THEME_OPTIONS = [
   { value: 'dark', label: 'Koyu' },
 ];
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { showDialog } = useAppDialog();
   const { user, signOut } = useAuth();
   const { colors, preference, setThemePreference } = useAppTheme();
@@ -26,6 +30,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const profileQuery = useQuery({ queryKey: ['profile'], queryFn: getProfile });
   const displayName = getDisplayName(user, profileQuery.data);
+  const { balance } = useCoins();
 
   const logout = async () => {
     setLoading(true);
@@ -53,6 +58,20 @@ export default function ProfileScreen() {
             Profil düzenleme özelliği backend desteği tamamlandığında kullanıma açılacak.
           </Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Paw mağazasını aç"
+          onPress={() => navigation.navigate(ROUTES.SHOP)}
+          style={({ pressed }) => [styles.shopCard, pressed && { opacity: 0.78 }]}
+        >
+          <View style={styles.shopIcon}><Ionicons name="shirt-outline" size={28} color={colors.primary} /></View>
+          <View style={styles.shopCopy}>
+            <Text style={styles.shopTitle}>Paw Mağazası</Text>
+            <Text style={styles.shopText}>Coinlerinle kedine aksesuar al.</Text>
+          </View>
+          <View style={styles.shopBalance}><CoinIcon size={24} /><Text style={styles.shopBalanceText}>{balance}</Text></View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textSecondary} />
+        </Pressable>
         <View style={styles.info}>
           <Text style={styles.infoTitle}>Tema</Text>
           <Text style={styles.infoText}>Uygulamanın görünümünü seç.</Text>

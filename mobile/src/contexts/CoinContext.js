@@ -12,14 +12,15 @@ const todayKey = () => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-export function CoinProvider({ children }) {
+export function CoinProvider({ children, userId }) {
   const [balance, setBalance] = useState(0);
   const [claims, setClaims] = useState([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([AsyncStorage.getItem(BALANCE_KEY), AsyncStorage.getItem(CLAIMS_KEY)])
+    setReady(false);
+    Promise.all([AsyncStorage.getItem(`${BALANCE_KEY}:${userId}`), AsyncStorage.getItem(`${CLAIMS_KEY}:${userId}`)])
       .then(([storedBalance, storedClaims]) => {
         if (!mounted) return;
         const parsedBalance = Number(storedBalance);
@@ -33,7 +34,7 @@ export function CoinProvider({ children }) {
       })
       .finally(() => mounted && setReady(true));
     return () => { mounted = false; };
-  }, []);
+  }, [userId]);
 
   const claimKey = useCallback((habitId) => `${todayKey()}:${habitId}`, []);
   const canClaim = useCallback(
@@ -50,15 +51,27 @@ export function CoinProvider({ children }) {
     setBalance(nextBalance);
     setClaims(nextClaims);
     await Promise.all([
-      AsyncStorage.setItem(BALANCE_KEY, String(nextBalance)),
-      AsyncStorage.setItem(CLAIMS_KEY, JSON.stringify(nextClaims)),
+      AsyncStorage.setItem(`${BALANCE_KEY}:${userId}`, String(nextBalance)),
+      AsyncStorage.setItem(`${CLAIMS_KEY}:${userId}`, JSON.stringify(nextClaims)),
     ]);
     return true;
-  }, [balance, claimKey, claims, ready]);
+  }, [balance, claimKey, claims, ready, userId]);
+
+  const spendCoins = useCallback(async (amount) => {
+    const normalizedAmount = Math.floor(Number(amount));
+    if (!ready || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0 || balance < normalizedAmount) {
+      return false;
+    }
+
+    const nextBalance = balance - normalizedAmount;
+    setBalance(nextBalance);
+    await AsyncStorage.setItem(`${BALANCE_KEY}:${userId}`, String(nextBalance));
+    return true;
+  }, [balance, ready, userId]);
 
   const value = useMemo(
-    () => ({ balance, ready, canClaim, claimReward }),
-    [balance, canClaim, claimReward, ready],
+    () => ({ balance, ready, canClaim, claimReward, spendCoins }),
+    [balance, canClaim, claimReward, ready, spendCoins],
   );
 
   return <CoinContext.Provider value={value}>{children}</CoinContext.Provider>;

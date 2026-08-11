@@ -18,6 +18,13 @@ export const createStyles = (colors) => StyleSheet.create({
   },
   infoTitle: { ...typography.heading, color: colors.textPrimary },
   infoText: { ...typography.body, color: colors.textSecondary },
+  shopCard: { minHeight: 94, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
+  shopIcon: { width: 50, height: 50, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: colors.primaryLight },
+  shopCopy: { flex: 1 },
+  shopTitle: { ...typography.subtitle, color: colors.textPrimary },
+  shopText: { ...typography.caption, color: colors.textSecondary },
+  shopBalance: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  shopBalanceText: { ...typography.label, color: colors.textPrimary },
   themeOptions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   themeOption: {
     flex: 1,
