@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ErrorState from '../../components/common/ErrorState';
@@ -10,13 +10,31 @@ import { getHabitById, updateHabit } from '../../services/habitService';
 import { formatReminderTime } from '../../utils/timeUtils';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { createStyles } from './HabitFormScreen.styles';
+import { syncHabitReminder } from '../../services/notificationService';
+import { useAppDialog } from '../../contexts/DialogContext';
 
 export default function EditHabitScreen({ route, navigation }) {
+  const scrollRef = useRef(null);
+  const reminderFocused = useRef(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { showDialog } = useAppDialog();
   const { id } = route.params;
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+      if (reminderFocused.current) scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
   const query = useQuery({ queryKey: ['habits', id], queryFn: () => getHabitById(id) });
   const mutation = useMutation({
     mutationFn: (payload) => updateHabit(id, payload),
@@ -26,9 +44,10 @@ export default function EditHabitScreen({ route, navigation }) {
         queryClient.invalidateQueries({ queryKey: ['habits'] }),
         queryClient.invalidateQueries({ queryKey: ['habits', 'today'] }),
       ]);
-      Alert.alert('Güncellendi', 'Alışkanlığındaki değişiklikler kaydedildi.', [
+      await syncHabitReminder(habit).catch((reason) => setError(reason.message));
+      showDialog({ title: 'Güncellendi', message: 'Alışkanlığındaki değişiklikler kaydedildi.', actions: [
         { text: 'Tamam', onPress: navigation.goBack },
-      ]);
+      ] });
     },
     onError: (reason) => setError(reason.message),
   });
@@ -46,11 +65,11 @@ export default function EditHabitScreen({ route, navigation }) {
   const submit = (payload, restoredReminder) => {
     setError('');
     if (restoredReminder) {
-      Alert.alert(
-        'Hatırlatma korunacak',
-        'Backend mevcut hatırlatmayı kaldırmayı desteklemiyor. Kayıtlı saat değiştirilmeden bırakılacak.',
-        [{ text: 'Anladım', onPress: () => mutation.mutate(payload) }],
-      );
+      showDialog({
+        title: 'Hatırlatma korunacak',
+        message: 'Backend mevcut hatırlatmayı kaldırmayı desteklemiyor. Kayıtlı saat değiştirilmeden bırakılacak.',
+        actions: [{ text: 'Anladım', onPress: () => mutation.mutate(payload) }],
+      });
       return;
     }
     mutation.mutate(payload);
@@ -61,10 +80,15 @@ export default function EditHabitScreen({ route, navigation }) {
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={80}
       >
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(keyboardHeight, 80) + 80 }]}
+      >
         <Text style={styles.description}>Yalnızca değiştirmek istediğin bilgileri düzenle.</Text>
         <HabitForm
           defaultValues={{ ...query.data, reminderTime: reminder }}
@@ -73,6 +97,11 @@ export default function EditHabitScreen({ route, navigation }) {
           loading={mutation.isPending}
           serverError={error}
           onSubmit={submit}
+          onReminderFocus={() => {
+            reminderFocused.current = true;
+            scrollRef.current?.scrollToEnd({ animated: true });
+          }}
+          onReminderBlur={() => { reminderFocused.current = false; }}
         />
       </ScrollView>
       </KeyboardAvoidingView>

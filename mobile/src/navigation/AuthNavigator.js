@@ -3,11 +3,12 @@ import { ROUTES } from '../constants/routes';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import WelcomeScreen from '../screens/auth/WelcomeScreen';
-import { colors } from '../theme/colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 const Stack = createNativeStackNavigator();
 
 export default function AuthNavigator() {
+  const { colors } = useAppTheme();
   return (
     <Stack.Navigator
       screenOptions={{

@@ -25,7 +25,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer theme={navigationTheme}>
-      {session ? <AppNavigator /> : <AuthNavigator />}
+      {session ? <AppNavigator key={session.user.id} /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }

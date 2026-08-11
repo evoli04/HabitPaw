@@ -7,6 +7,8 @@ import HabitsScreen from '../screens/habits/HabitsScreen';
 import ProgressScreen from '../screens/progress/ProgressScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import { useAppTheme } from '../hooks/useAppTheme';
+import AiHabitAssistant from '../components/ai/AiHabitAssistant';
+import CoinBadge from '../components/coins/CoinBadge';
 
 const Tab = createBottomTabNavigator();
 
@@ -21,6 +23,7 @@ export default function MainTabNavigator() {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   return (
+    <>
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -66,5 +69,8 @@ export default function MainTabNavigator() {
         return <Tab.Screen key={name} name={name} component={components[name]} options={{ tabBarLabel: config.label }} />;
       })}
     </Tab.Navigator>
+    <CoinBadge />
+    <AiHabitAssistant />
+    </>
   );
 }

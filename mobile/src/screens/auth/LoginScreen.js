@@ -18,7 +18,9 @@ import AppInput from '../../components/common/AppInput';
 import CatCharacter from '../../components/cat/CatCharacter';
 import { ROUTES } from '../../constants/routes';
 import { useAuth } from '../../hooks/useAuth';
-import { styles } from './LoginScreen.styles';
+import { useMemo } from 'react';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { createStyles } from './LoginScreen.styles';
 
 const schema = z.object({
   email: z.string().trim().email('Geçerli bir e-posta adresi girin.'),
@@ -26,6 +28,8 @@ const schema = z.object({
 });
 
 export default function LoginScreen({ navigation }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { signIn, configurationError } = useAuth();
   const [formError, setFormError] = useState('');
   const {
