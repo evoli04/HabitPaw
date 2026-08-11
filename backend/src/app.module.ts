@@ -8,6 +8,7 @@ import { envValidationSchema } from './config/env.validation';
 import { HealthController } from './common/health/health.controller';
 import { HabitsModule } from './habits/habits.module';
 import { AiModule } from './ai/ai.module';
+import { ProgressModule } from './progress/progress.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AiModule } from './ai/ai.module';
     AuthModule,
     HabitsModule,
     AiModule,
+    ProgressModule,
     ConfigModule.forRoot({
       validationSchema: envValidationSchema,
       isGlobal: true,

@@ -50,6 +50,9 @@ coverage
 .expo/
 expo-env.d.ts
 
+# SDK karar notu - takim ile konusulana kadar yerel
+/SDK-KARARI.md
+
 # temp directory
 .temp
 .tmp

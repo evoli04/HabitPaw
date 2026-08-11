@@ -1,18 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { HabitFrequency } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { UpdateHabitDto } from './dto/update-habit.dto';
-
-const FREQUENCIES_BY_WEEKDAY: Record<number, HabitFrequency[]> = {
-  0: [HabitFrequency.daily, HabitFrequency.weekends], // Sunday
-  1: [HabitFrequency.daily, HabitFrequency.weekdays],
-  2: [HabitFrequency.daily, HabitFrequency.weekdays],
-  3: [HabitFrequency.daily, HabitFrequency.weekdays],
-  4: [HabitFrequency.daily, HabitFrequency.weekdays],
-  5: [HabitFrequency.daily, HabitFrequency.weekdays],
-  6: [HabitFrequency.daily, HabitFrequency.weekends], // Saturday
-};
+import { FREQUENCIES_BY_WEEKDAY, toUtcDateOnly } from './habit-schedule';
 
 function toTimeDate(value?: string): Date | undefined {
   if (!value) return undefined;
@@ -20,8 +10,7 @@ function toTimeDate(value?: string): Date | undefined {
 }
 
 function todayDateOnly(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return toUtcDateOnly();
 }
 
 @Injectable()
