@@ -6,7 +6,8 @@
 
 | File | Role |
 |---|---|
-| `habits.module.ts` | declares `HabitsController`, provides/exports `HabitsService`. Relies on the global `PrismaModule` — no explicit import needed. |
+| `habits.module.ts` | declares `HabitsController`, provides/exports `HabitsService`. Relies on the global `PrismaModule` — no explicit import needed. Imports `CoinsModule` for reward payouts. |
+| `habit-schedule.ts` | shared calendar helpers (`FREQUENCIES_BY_WEEKDAY`, `isScheduledOn`, `toUtcDateOnly`, …) — also used by `ProgressService`, see [progress.md](progress.md) |
 | `habits.controller.ts` | routes below. `@ApiTags('habits')`, `@ApiBearerAuth('access-token')`. |
 | `habits.service.ts` | business logic, ownership checks, date handling |
 | `dto/create-habit.dto.ts` | `title` (≤100, required), `description?` (≤500), `frequency?` (`HabitFrequency`, default `daily`), `reminderTime?` (`HH:mm`, regex-validated) |
@@ -26,6 +27,7 @@ Base path `/api/habits`. All require `Authorization: Bearer <token>`.
 | `DELETE` | `/habits/:id` | `remove` | 204 |
 | `POST` | `/habits/:id/complete` | `complete` | idempotent upsert of today's completion |
 | `DELETE` | `/habits/:id/complete` | `uncomplete` | 204, removes today's completion if present |
+| `POST` | `/habits/:id/claim-reward` | `claimReward` | 200, pays today's coins once. See [coins.md](coins.md) |
 
 ## Implementation notes
 
@@ -34,3 +36,5 @@ Base path `/api/habits`. All require `Authorization: Bearer <token>`.
 - **"Today" is computed in UTC**, not the caller's local time zone. `todayDateOnly()` builds a UTC-midnight `Date`, and `getTodayForUser` picks applicable frequencies via `getUTCDay()`. A user far from UTC can see "today" flip at the wrong local moment — flagged as a known limitation, not yet addressed.
 - **Completion uniqueness**: `HabitCompletion` has a `[habitId, completionDate]` unique constraint; `complete()` upserts on that key (safe to call twice), `uncomplete()` deletes matching rows for today.
 - **`getTodayForUser`**: filters active habits whose `frequency` matches today's weekday (`daily` always; `weekdays` Mon–Fri; `weekends` Sat/Sun), includes today's completion row, and maps to a response shape with a computed `completedToday: boolean`.
+- **`claimReward` checks in order**: ownership via `findOneOrThrow` (a wrong id must look like a 404, not reveal that the habit exists), then that a `HabitCompletion` row exists for today (400 if not), then delegates the payout to `CoinsService.awardHabitReward`. The habits module owns "did you earn it"; the coins module owns "how much and has it been paid".
+- **Weekday table is no longer local.** `FREQUENCIES_BY_WEEKDAY` moved to `habit-schedule.ts` when the progress module needed the same "was this due that day?" answer. Two copies is how the home screen and the progress chart drift apart.

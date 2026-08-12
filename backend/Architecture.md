@@ -73,6 +73,8 @@ This endpoint is not meant for production clients — it exists solely so the wh
 - [docs/modules/habits.md](docs/modules/habits.md) — habit CRUD + daily completion tracking
 - [docs/modules/ai.md](docs/modules/ai.md) — Gemini habit suggestions, model/quota troubleshooting
 - [docs/modules/progress.md](docs/modules/progress.md) — chart data for the İlerleme screen: day series, streaks, per-habit breakdown
+- [docs/modules/coins.md](docs/modules/coins.md) — coin balance + append-only ledger, habit reward payout
+- [docs/modules/shop.md](docs/modules/shop.md) — accessory catalog, purchases, equipped item
 - [docs/modules/prisma.md](docs/modules/prisma.md) — global Prisma client module
 - [docs/modules/common.md](docs/modules/common.md) — `@Public()`/`@CurrentUser()`, health check
 - [docs/modules/config.md](docs/modules/config.md) — env validation

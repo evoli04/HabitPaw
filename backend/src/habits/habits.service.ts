@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CoinsService } from '../coins/coins.service';
+import { ClaimRewardResponseDto } from '../coins/dto/claim-reward.dto';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { UpdateHabitDto } from './dto/update-habit.dto';
 import { FREQUENCIES_BY_WEEKDAY, toUtcDateOnly } from './habit-schedule';
@@ -15,7 +21,10 @@ function todayDateOnly(): Date {
 
 @Injectable()
 export class HabitsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly coins: CoinsService,
+  ) {}
 
   create(userId: string, dto: CreateHabitDto) {
     return this.prisma.habit.create({
@@ -68,6 +77,34 @@ export class HabitsService {
       update: {},
       create: { habitId: id, userId, completionDate },
     });
+  }
+
+  /**
+   * Pays out today's coin reward for a habit the caller has already completed.
+   *
+   * Order matters: ownership first (a wrong id must look like a 404, not leak
+   * that the habit exists), then proof of completion, then the payout. Calling
+   * it twice is safe — the second call reports `alreadyClaimed` with a 200.
+   */
+  async claimReward(
+    userId: string,
+    id: string,
+  ): Promise<ClaimRewardResponseDto> {
+    await this.findOneOrThrow(userId, id);
+
+    const completion = await this.prisma.habitCompletion.findUnique({
+      where: {
+        habitId_completionDate: { habitId: id, completionDate: todayDateOnly() },
+      },
+      select: { id: true },
+    });
+    if (!completion) {
+      throw new BadRequestException(
+        'Ödülü alabilmek için önce alışkanlığı bugün tamamlamalısın',
+      );
+    }
+
+    return this.coins.awardHabitReward(userId, id);
   }
 
   async uncomplete(userId: string, id: string) {

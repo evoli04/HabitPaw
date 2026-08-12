@@ -9,6 +9,8 @@ import { HealthController } from './common/health/health.controller';
 import { HabitsModule } from './habits/habits.module';
 import { AiModule } from './ai/ai.module';
 import { ProgressModule } from './progress/progress.module';
+import { CoinsModule } from './coins/coins.module';
+import { ShopModule } from './shop/shop.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { ProgressModule } from './progress/progress.module';
     HabitsModule,
     AiModule,
     ProgressModule,
+    CoinsModule,
+    ShopModule,
     ConfigModule.forRoot({
       validationSchema: envValidationSchema,
       isGlobal: true,

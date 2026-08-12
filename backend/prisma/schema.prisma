@@ -14,15 +14,23 @@ enum HabitFrequency {
   weekends
 }
 
+enum CoinTransactionType {
+  habit_reward
+  purchase
+}
+
 model Profile {
-  id        String   @id @db.Uuid
-  name      String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @db.Uuid
+  name        String?
+  coinBalance Int      @default(0) @map("coin_balance")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   habits            Habit[]
   habitCompletions  HabitCompletion[]
   cats              Cat[]
   aiRecommendations AiRecommendation[]
+  coinTransactions  CoinTransaction[]
+  shopItems         UserShopItem[]
 
   @@map("profiles")
 }
@@ -37,8 +45,9 @@ model Habit {
   isActive     Boolean        @default(true) @map("is_active")
   createdAt    DateTime       @default(now()) @map("created_at")
 
-  user        Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  completions HabitCompletion[]
+  user             Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions      HabitCompletion[]
+  coinTransactions CoinTransaction[]
 
   @@index([userId])
   @@index([userId, isActive])
@@ -70,6 +79,55 @@ model Cat {
   user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("cats")
+}
+
+/// Append-only coin ledger. `profiles.coin_balance` is a running total of these
+/// rows — the ledger is the source of truth, the balance is the cache.
+model CoinTransaction {
+  id     String              @id @default(uuid()) @db.Uuid
+  userId String              @map("user_id") @db.Uuid
+  /// Positive for earnings, negative for spending.
+  amount Int
+  type   CoinTransactionType
+
+  /// Set on `habit_reward` rows only. Kept (not cascaded) when the habit is
+  /// deleted so an existing balance never loses its justification.
+  habitId    String?   @map("habit_id") @db.Uuid
+  rewardDate DateTime? @map("reward_date") @db.Date
+
+  /// Set on `purchase` rows only — the catalog id from `shop-catalog.ts`.
+  shopItemId String? @map("shop_item_id") @db.VarChar(50)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit?  @relation(fields: [habitId], references: [id], onDelete: SetNull)
+
+  /// One reward per habit per day, enforced by the database rather than by
+  /// application logic. Purchase rows leave both columns NULL and Postgres
+  /// treats NULLs as distinct, so they are unaffected by this constraint.
+  @@unique([habitId, rewardDate])
+  @@index([userId, createdAt])
+  @@map("coin_transactions")
+}
+
+/// Accessories a user owns. The catalog itself (name, price, image) is not in
+/// the database — see `src/shop/shop-catalog.ts`.
+model UserShopItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  itemId    String   @map("item_id") @db.VarChar(50)
+  /// Snapshot of what was actually paid, so later catalog price changes do not
+  /// rewrite history.
+  pricePaid Int      @map("price_paid")
+  equipped  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId])
+  @@map("user_shop_items")
 }
 
 model AiRecommendation {
