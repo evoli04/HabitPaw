@@ -38,6 +38,31 @@ export class HabitsService {
     });
   }
 
+  /**
+   * Creates several habits in a single database round trip.
+   *
+   * Prisma's array-form `$transaction` sends the statements as one batch. A
+   * `for` loop of awaited `create` calls pays a full round trip each — ~260 ms
+   * against the Frankfurt pooler, so three suggestions cost nearly a second.
+   * `createMany` would batch too, but it does not return the created rows and
+   * callers need them.
+   */
+  createMany(userId: string, dtos: CreateHabitDto[]) {
+    return this.prisma.$transaction(
+      dtos.map((dto) =>
+        this.prisma.habit.create({
+          data: {
+            userId,
+            title: dto.title,
+            description: dto.description,
+            frequency: dto.frequency,
+            reminderTime: toTimeDate(dto.reminderTime),
+          },
+        }),
+      ),
+    );
+  }
+
   findAll(userId: string) {
     return this.prisma.habit.findMany({
       where: { userId },
@@ -90,15 +115,22 @@ export class HabitsService {
     userId: string,
     id: string,
   ): Promise<ClaimRewardResponseDto> {
-    await this.findOneOrThrow(userId, id);
-
-    const completion = await this.prisma.habitCompletion.findUnique({
-      where: {
-        habitId_completionDate: { habitId: id, completionDate: todayDateOnly() },
+    // Ownership and proof-of-completion in one query rather than two: the
+    // relation filter carries the completion check, so a wrong id and an
+    // unfinished habit are still told apart without a second round trip.
+    const habit = await this.prisma.habit.findFirst({
+      where: { id, userId },
+      select: {
+        id: true,
+        completions: {
+          where: { completionDate: todayDateOnly() },
+          select: { id: true },
+          take: 1,
+        },
       },
-      select: { id: true },
     });
-    if (!completion) {
+    if (!habit) throw new NotFoundException('Habit not found');
+    if (habit.completions.length === 0) {
       throw new BadRequestException(
         'Ödülü alabilmek için önce alışkanlığı bugün tamamlamalısın',
       );

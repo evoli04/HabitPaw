@@ -24,31 +24,31 @@ export class CoinsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getWallet(userId: string): Promise<WalletDto> {
-    const [profile, transactions] = await Promise.all([
-      this.prisma.profile.findUnique({
-        where: { id: userId },
-        select: { coinBalance: true },
-      }),
-      this.prisma.coinTransaction.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: RECENT_TRANSACTION_LIMIT,
-        select: {
-          id: true,
-          amount: true,
-          type: true,
-          habitId: true,
-          rewardDate: true,
-          shopItemId: true,
-          createdAt: true,
+    // Balance and ledger in one request instead of two parallel ones.
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: userId },
+      select: {
+        coinBalance: true,
+        coinTransactions: {
+          orderBy: { createdAt: 'desc' },
+          take: RECENT_TRANSACTION_LIMIT,
+          select: {
+            id: true,
+            amount: true,
+            type: true,
+            habitId: true,
+            rewardDate: true,
+            shopItemId: true,
+            createdAt: true,
+          },
         },
-      }),
-    ]);
+      },
+    });
 
     return {
       balance: profile?.coinBalance ?? 0,
       habitReward: HABIT_REWARD,
-      recentTransactions: transactions.map((transaction) => ({
+      recentTransactions: (profile?.coinTransactions ?? []).map((transaction) => ({
         ...transaction,
         rewardDate: transaction.rewardDate
           ? toIsoDate(transaction.rewardDate)
@@ -72,8 +72,11 @@ export class CoinsService {
     const rewardDate = toUtcDateOnly();
 
     try {
-      const profile = await this.prisma.$transaction(async (tx) => {
-        await tx.coinTransaction.create({
+      // Array-form `$transaction`: still one atomic unit, but sent as a single
+      // batch. The interactive form would spend a round trip each on BEGIN, the
+      // insert, the update and COMMIT — four times ~260 ms on a remote database.
+      const [, profile] = await this.prisma.$transaction([
+        this.prisma.coinTransaction.create({
           data: {
             userId,
             amount: HABIT_REWARD,
@@ -81,14 +84,13 @@ export class CoinsService {
             habitId,
             rewardDate,
           },
-        });
-
-        return tx.profile.update({
+        }),
+        this.prisma.profile.update({
           where: { id: userId },
           data: { coinBalance: { increment: HABIT_REWARD } },
           select: { coinBalance: true },
-        });
-      });
+        }),
+      ]);
 
       return {
         awarded: HABIT_REWARD,
@@ -119,11 +121,17 @@ export class CoinsService {
     amount: number,
     shopItemId: string,
   ): Promise<number | null> {
-    const updated = await tx.profile.updateMany({
-      where: { id: userId, coinBalance: { gte: amount } },
-      data: { coinBalance: { decrement: amount } },
-    });
-    if (updated.count === 0) return null;
+    // Raw SQL because `updateMany` cannot return rows: `RETURNING` gets the
+    // guard and the new balance out of one statement. Previously this took
+    // three (updateMany, insert, findUniqueOrThrow).
+    const rows = await tx.$queryRaw<{ coin_balance: number }[]>`
+      update profiles
+         set coin_balance = coin_balance - ${amount}
+       where id = ${userId}::uuid
+         and coin_balance >= ${amount}
+      returning coin_balance
+    `;
+    if (rows.length === 0) return null;
 
     await tx.coinTransaction.create({
       data: {
@@ -134,11 +142,7 @@ export class CoinsService {
       },
     });
 
-    const profile = await tx.profile.findUniqueOrThrow({
-      where: { id: userId },
-      select: { coinBalance: true },
-    });
-    return profile.coinBalance;
+    return rows[0].coin_balance;
   }
 
   async getBalance(userId: string): Promise<number> {

@@ -67,3 +67,8 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 generated/prisma
+
+# Supabase
+# Veri dokumu - gercek kullanici satirlari icerir, commit'lenmemeli.
+# (schema.sql commit'li ve kalabilir: sadece DDL, veri yok.)
+/supabase/data.sql

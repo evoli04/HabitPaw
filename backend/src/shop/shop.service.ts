@@ -19,18 +19,21 @@ export class ShopService {
 
   /** Catalog + the caller's ownership state + balance, in one payload. */
   async listItems(userId: string): Promise<ShopCatalogResponseDto> {
-    const [balance, owned] = await Promise.all([
-      this.coins.getBalance(userId),
-      this.prisma.userShopItem.findMany({
-        where: { userId },
-        select: { itemId: true, equipped: true },
-      }),
-    ]);
+    // Balance and inventory in one request instead of two parallel ones.
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: userId },
+      select: {
+        coinBalance: true,
+        shopItems: { select: { itemId: true, equipped: true } },
+      },
+    });
 
-    const ownedById = new Map(owned.map((row) => [row.itemId, row]));
+    const ownedById = new Map(
+      (profile?.shopItems ?? []).map((row) => [row.itemId, row]),
+    );
 
     return {
-      balance,
+      balance: profile?.coinBalance ?? 0,
       items: SHOP_CATALOG.map((item) => ({
         ...item,
         owned: ownedById.has(item.id),
