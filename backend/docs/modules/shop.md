@@ -21,7 +21,7 @@ Backs `mobile/src/screens/shop/ShopScreen.js`, which previously kept ownership i
 |---|---|---|
 | `GET` | `/shop/items` | catalog + per-item `owned`/`equipped` + balance |
 | `POST` | `/shop/items/:id/purchase` | 200 with refreshed catalog; 400 insufficient balance; 409 already owned; 404 unknown id |
-| `PUT` | `/shop/equipped` | body `{ "itemId": "bow" }` or `{ "itemId": null }` |
+| `PUT` | `/shop/equipped` | body `{ "itemId": "bowtie" }` or `{ "itemId": null }` |
 
 All three return the same `ShopCatalogResponseDto`, so the shop screen re-renders from any of them without a follow-up request.
 

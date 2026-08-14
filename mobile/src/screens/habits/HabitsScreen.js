@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppButton from '../../components/common/AppButton';
 import AppBackground from '../../components/common/AppBackground';
 import EmptyState from '../../components/common/EmptyState';
@@ -9,9 +10,15 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 import HabitCard from '../../components/habits/HabitCard';
 import { ROUTES } from '../../constants/routes';
 import { getHabits } from '../../services/habitService';
-import { styles } from './HabitsScreen.styles';
+import { createStyles } from './HabitsScreen.styles';
+import { layout, spacing } from '../../theme/spacing';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 export default function HabitsScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const insets = useSafeAreaInsets();
+  const bottomPadding = layout.tabBarHeight + Math.max(insets.bottom, 14) + spacing.xxl;
   const query = useQuery({ queryKey: ['habits'], queryFn: getHabits });
   if (query.isLoading) return <LoadingScreen message="Alışkanlıkların yükleniyor…" />;
 
@@ -19,7 +26,7 @@ export default function HabitsScreen({ navigation }) {
     <AppBackground>
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={query.refetch} />}
       >

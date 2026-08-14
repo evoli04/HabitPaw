@@ -21,6 +21,8 @@ import { getProfile } from '../../services/profileService';
 import { syncHabitReminder } from '../../services/notificationService';
 import { getDisplayName } from '../../utils/displayName';
 import { useCoins } from '../../contexts/CoinContext';
+import { useAppDialog } from '../../contexts/DialogContext';
+import { useShop } from '../../contexts/ShopContext';
 import { layout, spacing } from '../../theme/spacing';
 import { createStyles } from './HomeScreen.styles';
 
@@ -38,19 +40,22 @@ export default function HomeScreen({ navigation }) {
   const [celebration, setCelebration] = useState(null);
   const closeCelebration = useCallback(() => setCelebration(null), []);
   const [claimingReward, setClaimingReward] = useState(false);
-  const { canClaim, claimReward } = useCoins();
+  const { habitReward, claimReward } = useCoins();
+  const { equippedItemId } = useShop();
+  const { showDialog } = useAppDialog();
   const todayQuery = useQuery({ queryKey: ['habits', 'today'], queryFn: getTodayHabits });
   const profileQuery = useQuery({ queryKey: ['profile'], queryFn: getProfile });
   const mutation = useMutation({
     mutationFn: ({ id, completed }) => (completed ? uncompleteHabit(id) : completeHabit(id)),
     onSettled: () => setActiveId(null),
     onSuccess: async (_response, variables) => {
-      if (!variables.completed && canClaim(variables.id)) {
+      if (!variables.completed) {
         setCelebration({ id: variables.id, title: variables.title });
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['habits', 'today'] }),
         queryClient.invalidateQueries({ queryKey: ['habits'] }),
+        queryClient.invalidateQueries({ queryKey: ['progress'] }),
       ]);
     },
   });
@@ -81,6 +86,8 @@ export default function HomeScreen({ navigation }) {
     try {
       await claimReward(celebration.id);
       closeCelebration();
+    } catch (error) {
+      showDialog({ title: 'Ödül alınamadı', message: error.message, tone: 'danger' });
     } finally {
       setClaimingReward(false);
     }
@@ -93,6 +100,7 @@ export default function HomeScreen({ navigation }) {
       <CelebrationPopup
         visible={Boolean(celebration)}
         habitTitle={celebration?.title}
+        reward={habitReward}
         claiming={claimingReward}
         onClaim={collectReward}
         onClose={closeCelebration}
@@ -116,7 +124,7 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.date}>{date}</Text>
           </View>
           <View style={styles.catArea}>
-            <CatCharacter mood={mood} prominent />
+            <CatCharacter mood={mood} equippedItemId={equippedItemId} prominent />
             <CatMoodMessage mood={mood} />
           </View>
           <DailyProgressCard completed={completed} total={habits.length} />

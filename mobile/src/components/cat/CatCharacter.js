@@ -1,16 +1,9 @@
 import { memo, useEffect, useRef } from 'react';
 import { Animated, Image, Text, useWindowDimensions, View } from 'react-native';
+import { getCatImage } from '../../constants/catImages';
 import { styles } from './CatCharacter.styles';
 
-const moodImages = {
-  neutral: require('../../../assets/cats/cat.png'),
-  sad: require('../../../assets/cats/sadcat.png'),
-  sleepy: require('../../../assets/cats/sleepingcat.png'),
-  happy: require('../../../assets/cats/happycat.png'),
-  excited: require('../../../assets/cats/celebratingcat.png'),
-};
-
-function CatCharacter({ mood = 'neutral', size = 'large', animated = true, prominent = false }) {
+function CatCharacter({ mood = 'neutral', equippedItemId = null, size = 'large', animated = true, prominent = false }) {
   const isSmall = size === 'small';
   const { width, height } = useWindowDimensions();
   const responsiveSize = prominent
@@ -86,7 +79,7 @@ function CatCharacter({ mood = 'neutral', size = 'large', animated = true, promi
         <Image
           accessibilityRole="image"
           accessibilityLabel={`HabitPaw kedisi: ${mood}`}
-          source={moodImages[mood] || moodImages.neutral}
+          source={getCatImage(mood, equippedItemId)}
           resizeMode="contain"
           style={[
             styles.image,

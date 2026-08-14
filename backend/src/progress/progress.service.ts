@@ -6,6 +6,7 @@ import {
   eachDay,
   isScheduledOn,
   startOfUtcMonth,
+  startOfUtcWeek,
   toIsoDate,
   toUtcDateOnly,
 } from '../habits/habit-schedule';
@@ -19,7 +20,7 @@ import {
 /**
  * How far back streaks are allowed to reach. Deliberately larger than any chart
  * range: a 30-day streak must still be reportable while the user is looking at
- * the 7-day view.
+ * the current-week view.
  */
 const STREAK_LOOKBACK_DAYS = 365;
 
@@ -33,7 +34,7 @@ interface TrackedHabit {
   id: string;
   title: string;
   frequency: HabitFrequency;
-  /** UTC-midnight day the habit was created — it counts as scheduled from here on. */
+  /** UTC-midnight day the habit was created; earlier days do not count against it. */
   bornOn: Date;
   /** `YYYY-MM-DD` keys this habit was completed on, within the queried window. */
   completedOn: Set<string>;
@@ -55,7 +56,7 @@ export class ProgressService {
     const rangeStart =
       range === ProgressRange.month
         ? startOfUtcMonth(today)
-        : addDays(today, -6);
+        : startOfUtcWeek(today);
 
     const streakStart = addDays(today, -(STREAK_LOOKBACK_DAYS - 1));
     const queryFrom = rangeStart < streakStart ? rangeStart : streakStart;

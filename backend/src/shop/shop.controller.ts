@@ -49,7 +49,7 @@ export class ShopController {
   @Put('equipped')
   @ApiOperation({
     summary: 'Put an accessory on, or take the current one off',
-    description: 'Body `{ "itemId": "bow" }` to wear, `{ "itemId": null }` to remove.',
+    description: 'Body `{ "itemId": "bowtie" }` to wear, `{ "itemId": null }` to remove.',
   })
   @ApiOkResponse({ type: ShopCatalogResponseDto })
   setEquipped(

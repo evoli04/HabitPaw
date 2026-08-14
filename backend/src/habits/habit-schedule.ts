@@ -50,6 +50,12 @@ export function startOfUtcMonth(day: Date): Date {
   return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1));
 }
 
+/** UTC midnight on Monday of the week containing `day`. */
+export function startOfUtcWeek(day: Date): Date {
+  const daysSinceMonday = (day.getUTCDay() + 6) % 7;
+  return addDays(day, -daysSinceMonday);
+}
+
 /** Every UTC-midnight day from `start` to `end`, both inclusive. */
 export function eachDay(start: Date, end: Date): Date[] {
   const days: Date[] = [];

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,7 +18,6 @@ import AppInput from '../../components/common/AppInput';
 import CatCharacter from '../../components/cat/CatCharacter';
 import { ROUTES } from '../../constants/routes';
 import { useAuth } from '../../hooks/useAuth';
-import { useMemo } from 'react';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { createStyles } from './LoginScreen.styles';
 
@@ -32,6 +31,7 @@ export default function LoginScreen({ navigation }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { signIn, configurationError } = useAuth();
   const [formError, setFormError] = useState('');
+  const scrollRef = useRef(null);
   const {
     control,
     handleSubmit,
@@ -50,9 +50,14 @@ export default function LoginScreen({ navigation }) {
   return (
     <AppBackground>
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+          <ScrollView
+            ref={scrollRef}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={styles.content}
+          >
             <View style={styles.hero}>
               <CatCharacter mood="happy" />
               <Text style={styles.title}>Tekrar hoş geldin</Text>
@@ -85,6 +90,7 @@ export default function LoginScreen({ navigation }) {
                     placeholder="Şifreniz"
                     secureTextEntry
                     autoComplete="password"
+                    onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250)}
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}

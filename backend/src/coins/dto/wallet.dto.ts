@@ -38,7 +38,7 @@ export class CoinTransactionDto {
   @ApiProperty({
     type: String,
     nullable: true,
-    example: 'bow',
+    example: 'bowtie',
     description: 'Set on purchase rows — the catalog id that was bought',
   })
   shopItemId: string | null;

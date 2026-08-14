@@ -1,12 +1,16 @@
+import { useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppButton from '../../components/common/AppButton';
 import AppBackground from '../../components/common/AppBackground';
 import CatCharacter from '../../components/cat/CatCharacter';
 import { ROUTES } from '../../constants/routes';
-import { styles } from './WelcomeScreen.styles';
+import { createStyles } from './WelcomeScreen.styles';
+import { useAppTheme } from '../../hooks/useAppTheme';
 
 export default function WelcomeScreen({ navigation }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   return (
     <AppBackground>
     <SafeAreaView style={styles.safeArea}>

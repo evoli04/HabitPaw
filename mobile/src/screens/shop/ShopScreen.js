@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppBackground from '../../components/common/AppBackground';
-import CatCharacter from '../../components/cat/CatCharacter';
+import CatAvatar from '../../components/cat/CatAvatar';
 import CoinIcon from '../../components/coins/CoinIcon';
-import { SHOP_ITEMS } from '../../constants/shopItems';
 import { useCoins } from '../../contexts/CoinContext';
 import { useAppDialog } from '../../contexts/DialogContext';
 import { useShop } from '../../contexts/ShopContext';
@@ -12,18 +11,24 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { createStyles } from './ShopScreen.styles';
 
 export default function ShopScreen() {
+  const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { balance, ready: coinsReady, spendCoins } = useCoins();
-  const { ready, ownedItemIds, equippedItemId, unlockItem, equipItem, unequipItem } = useShop();
+  const cardWidth = Math.floor((width - 2 * 24 - 16) / 2);
+  const avatarSize = Math.min(width * 0.72, 320);
+  const { balance, ready: coinsReady } = useCoins();
+  const { ready, items, equippedItem, equippedItemId, purchaseItem, equipItem, unequipItem } = useShop();
   const { showDialog } = useAppDialog();
-  const equippedItem = SHOP_ITEMS.find((item) => item.id === equippedItemId);
 
-  const buyItem = (item) => {
+  const buyItem = async (item) => {
     if (!ready || !coinsReady) return;
-    if (ownedItemIds.includes(item.id)) {
-      if (equippedItemId === item.id) unequipItem();
-      else equipItem(item.id);
+    if (item.owned) {
+      try {
+        if (equippedItemId === item.id) await unequipItem();
+        else await equipItem(item.id);
+      } catch (error) {
+        showDialog({ title: 'İşlem tamamlanamadı', message: error.message, tone: 'danger' });
+      }
       return;
     }
     if (balance < item.price) {
@@ -41,11 +46,13 @@ export default function ShopScreen() {
         {
           text: 'Satın al',
           onPress: async () => {
-            const paid = await spendCoins(item.price);
-            if (!paid) return;
-            await unlockItem(item.id);
-            await equipItem(item.id);
-            showDialog({ title: 'Paw çok yakışıklı oldu!', message: `${item.name} satın alındı ve kuşanıldı.` });
+            try {
+              await purchaseItem(item.id);
+              await equipItem(item.id);
+              showDialog({ title: 'Paw çok yakışıklı oldu!', message: `${item.name} satın alındı ve kuşanıldı.` });
+            } catch (error) {
+              showDialog({ title: 'İşlem tamamlanamadı', message: error.message, tone: 'danger' });
+            }
           },
         },
       ],
@@ -63,40 +70,53 @@ export default function ShopScreen() {
           <View style={styles.hero}>
             <Text style={styles.heroTitle}>Paw’ın Gardırobu</Text>
             <Text style={styles.heroText}>Alışkanlıklarını tamamla, coin kazan ve Paw’ı süsle.</Text>
-            <View style={styles.catStage}>
-              <CatCharacter mood="happy" size="small" />
-              {equippedItem ? (
-                <Image
-                  source={equippedItem.image}
-                  resizeMode="contain"
-                  style={[styles.equippedPreview, equippedItem.previewStyle]}
-                />
-              ) : null}
-            </View>
-            <Text style={styles.equippedLabel}>{equippedItem ? `${equippedItem.name} kuşanıldı` : 'Henüz bir aksesuar kuşanılmadı'}</Text>
+            <CatAvatar equippedItem={equippedItem} size={avatarSize} />
+            <Text style={styles.equippedLabel}>
+              {equippedItem ? `${equippedItem.name} kuşanıldı` : 'Henüz bir aksesuar kuşanılmadı'}
+            </Text>
           </View>
           <Text style={styles.sectionTitle}>Aksesuarlar</Text>
           <View style={styles.grid}>
-            {SHOP_ITEMS.map((item) => {
-              const owned = ownedItemIds.includes(item.id);
+            {items.map((item) => {
+              const owned = item.owned;
               const equipped = equippedItemId === item.id;
               return (
-                <View key={item.id} style={[styles.itemCard, item.premium && styles.premiumCard]}>
-                  {item.premium ? <Text style={styles.premiumLabel}>EN ÖZEL</Text> : null}
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name}, ${item.price} coin`}
+                  onPress={() => buyItem(item)}
+                  style={({ pressed }) => [
+                    styles.itemCard,
+                    { width: cardWidth },
+                    item.premium && styles.premiumCard,
+                    equipped && styles.itemCardEquipped,
+                    pressed && styles.actionPressed,
+                  ]}
+                >
+                  {item.premium ? <Text style={styles.premiumLabel}>ÖZEL</Text> : null}
                   <View style={styles.itemVisual}>
-                    <Image source={item.image} resizeMode="contain" style={styles.itemImage} />
+                    <Image
+                      source={item.shopImage}
+                      resizeMode="contain"
+                      style={[
+                        styles.itemImage,
+                        {
+                          top: item.previewOffsetY ?? 0,
+                          transform: [{ scale: item.previewScale ?? 1 }],
+                        },
+                      ]}
+                    />
                   </View>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemDescription}>{item.description}</Text>
-                  <View style={styles.priceRow}><CoinIcon size={22} /><Text style={styles.price}>{item.price}</Text></View>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => buyItem(item)}
-                    style={({ pressed }) => [styles.action, owned && styles.actionOwned, equipped && styles.actionEquipped, pressed && styles.actionPressed]}
-                  >
-                    <Text style={[styles.actionText, owned && styles.actionOwnedText]}>{equipped ? 'Çıkar' : owned ? 'Kuşan' : 'Satın al'}</Text>
-                  </Pressable>
-                </View>
+                  <Text numberOfLines={2} style={styles.itemName}>{item.name}</Text>
+                  <Text numberOfLines={2} style={styles.itemDescription}>{item.description}</Text>
+                  <View style={styles.priceRow}><CoinIcon size={20} /><Text style={styles.price}>{item.price}</Text></View>
+                  <View style={[styles.action, owned && styles.actionOwned, equipped && styles.actionEquipped]}>
+                    <Text numberOfLines={1} style={[styles.actionText, owned && styles.actionOwnedText]}>
+                      {equipped ? 'Çıkar' : owned ? 'Kuşan' : 'Satın al'}
+                    </Text>
+                  </View>
+                </Pressable>
               );
             })}
           </View>

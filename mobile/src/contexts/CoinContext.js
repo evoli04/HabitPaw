@@ -1,77 +1,51 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-
-const BALANCE_KEY = 'habitpaw_coin_balance';
-const CLAIMS_KEY = 'habitpaw_coin_claims';
-export const HABIT_REWARD = 30;
+import { claimHabitReward, getWallet } from '../services/coinService';
 
 const CoinContext = createContext(null);
 
-const todayKey = () => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-};
-
 export function CoinProvider({ children, userId }) {
   const [balance, setBalance] = useState(0);
-  const [claims, setClaims] = useState([]);
+  const [habitReward, setHabitReward] = useState(0);
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const [ready, setReady] = useState(false);
+
+  const syncBalance = useCallback((nextBalance) => {
+    if (Number.isFinite(nextBalance)) setBalance(nextBalance);
+  }, []);
+
+  const refreshWallet = useCallback(async () => {
+    const wallet = await getWallet();
+    setBalance(wallet.balance);
+    setHabitReward(wallet.habitReward);
+    setRecentTransactions(wallet.recentTransactions ?? []);
+    return wallet;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     setReady(false);
-    Promise.all([AsyncStorage.getItem(`${BALANCE_KEY}:${userId}`), AsyncStorage.getItem(`${CLAIMS_KEY}:${userId}`)])
-      .then(([storedBalance, storedClaims]) => {
+    getWallet()
+      .then((wallet) => {
         if (!mounted) return;
-        const parsedBalance = Number(storedBalance);
-        setBalance(Number.isFinite(parsedBalance) && parsedBalance >= 0 ? parsedBalance : 0);
-        try {
-          const parsedClaims = JSON.parse(storedClaims ?? '[]');
-          setClaims(Array.isArray(parsedClaims) ? parsedClaims : []);
-        } catch {
-          setClaims([]);
-        }
+        setBalance(wallet.balance);
+        setHabitReward(wallet.habitReward);
+        setRecentTransactions(wallet.recentTransactions ?? []);
       })
+      .catch(() => undefined)
       .finally(() => mounted && setReady(true));
     return () => { mounted = false; };
   }, [userId]);
 
-  const claimKey = useCallback((habitId) => `${todayKey()}:${habitId}`, []);
-  const canClaim = useCallback(
-    (habitId) => ready && !claims.includes(claimKey(habitId)),
-    [claimKey, claims, ready],
-  );
-
   const claimReward = useCallback(async (habitId) => {
-    const key = claimKey(habitId);
-    if (!ready || claims.includes(key)) return false;
-
-    const nextBalance = balance + HABIT_REWARD;
-    const nextClaims = [...claims.filter((item) => item.startsWith(todayKey())), key];
-    setBalance(nextBalance);
-    setClaims(nextClaims);
-    await Promise.all([
-      AsyncStorage.setItem(`${BALANCE_KEY}:${userId}`, String(nextBalance)),
-      AsyncStorage.setItem(`${CLAIMS_KEY}:${userId}`, JSON.stringify(nextClaims)),
-    ]);
-    return true;
-  }, [balance, claimKey, claims, ready, userId]);
-
-  const spendCoins = useCallback(async (amount) => {
-    const normalizedAmount = Math.floor(Number(amount));
-    if (!ready || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0 || balance < normalizedAmount) {
-      return false;
-    }
-
-    const nextBalance = balance - normalizedAmount;
-    setBalance(nextBalance);
-    await AsyncStorage.setItem(`${BALANCE_KEY}:${userId}`, String(nextBalance));
-    return true;
-  }, [balance, ready, userId]);
+    const result = await claimHabitReward(habitId);
+    setBalance(result.balance);
+    await refreshWallet();
+    return result;
+  }, [refreshWallet]);
 
   const value = useMemo(
-    () => ({ balance, ready, canClaim, claimReward, spendCoins }),
-    [balance, canClaim, claimReward, ready, spendCoins],
+    () => ({ balance, habitReward, recentTransactions, ready, claimReward, refreshWallet, syncBalance }),
+    [balance, claimReward, habitReward, ready, recentTransactions, refreshWallet, syncBalance],
   );
 
   return <CoinContext.Provider value={value}>{children}</CoinContext.Provider>;

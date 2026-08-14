@@ -5,7 +5,7 @@ export class EquipItemDto {
   @ApiPropertyOptional({
     type: String,
     nullable: true,
-    example: 'bow',
+    example: 'bowtie',
     description:
       'Catalog id to put on. Send null (or omit) to take the current accessory off.',
   })

@@ -1,57 +1,69 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { SHOP_ITEM_BY_ID } from '../constants/shopItems';
+import { getShopItems, purchaseShopItem, setEquippedShopItem } from '../services/shopService';
+import { useCoins } from './CoinContext';
 
-const OWNED_ITEMS_KEY = 'habitpaw_shop_owned_items';
-const EQUIPPED_ITEM_KEY = 'habitpaw_shop_equipped_item';
 const ShopContext = createContext(null);
 
+function normalizeCatalog(response) {
+  return (response.items ?? []).map((item) => ({ ...SHOP_ITEM_BY_ID[item.id], ...item }));
+}
+
 export function ShopProvider({ children, userId }) {
-  const [ownedItemIds, setOwnedItemIds] = useState([]);
-  const [equippedItemId, setEquippedItemId] = useState(null);
+  const { syncBalance } = useCoins();
+  const [items, setItems] = useState([]);
   const [ready, setReady] = useState(false);
+
+  const applyCatalog = useCallback((response) => {
+    setItems(normalizeCatalog(response));
+    syncBalance(response.balance);
+    return response;
+  }, [syncBalance]);
+
+  const refreshShop = useCallback(async () => {
+    const response = await getShopItems();
+    return applyCatalog(response);
+  }, [applyCatalog]);
 
   useEffect(() => {
     let mounted = true;
     setReady(false);
-    Promise.all([
-      AsyncStorage.getItem(`${OWNED_ITEMS_KEY}:${userId}`),
-      AsyncStorage.getItem(`${EQUIPPED_ITEM_KEY}:${userId}`),
-    ])
-      .then(([storedOwnedItems, storedEquippedItem]) => {
-        if (!mounted) return;
-        try {
-          const parsedItems = JSON.parse(storedOwnedItems ?? '[]');
-          setOwnedItemIds(Array.isArray(parsedItems) ? parsedItems : []);
-        } catch {
-          setOwnedItemIds([]);
-        }
-        setEquippedItemId(storedEquippedItem || null);
+    getShopItems()
+      .then((response) => {
+        if (mounted) applyCatalog(response);
       })
+      .catch(() => undefined)
       .finally(() => mounted && setReady(true));
     return () => { mounted = false; };
-  }, [userId]);
+  }, [applyCatalog, userId]);
 
-  const unlockItem = useCallback(async (itemId) => {
-    if (!ready || ownedItemIds.includes(itemId)) return false;
-    const nextItems = [...ownedItemIds, itemId];
-    setOwnedItemIds(nextItems);
-    await AsyncStorage.setItem(`${OWNED_ITEMS_KEY}:${userId}`, JSON.stringify(nextItems));
-    return true;
-  }, [ownedItemIds, ready, userId]);
+  const purchaseItem = useCallback(async (itemId) => {
+    const response = await purchaseShopItem(itemId);
+    applyCatalog(response);
+    return response;
+  }, [applyCatalog]);
 
   const equipItem = useCallback(async (itemId) => {
-    setEquippedItemId(itemId);
-    await AsyncStorage.setItem(`${EQUIPPED_ITEM_KEY}:${userId}`, itemId);
-    return true;
-  }, [userId]);
+    const response = await setEquippedShopItem(itemId);
+    applyCatalog(response);
+    return response;
+  }, [applyCatalog]);
 
   const unequipItem = useCallback(async () => {
-    setEquippedItemId(null);
-    await AsyncStorage.removeItem(`${EQUIPPED_ITEM_KEY}:${userId}`);
-  }, [userId]);
+    const response = await setEquippedShopItem(null);
+    applyCatalog(response);
+    return response;
+  }, [applyCatalog]);
 
-  const value = useMemo(() => ({ ready, ownedItemIds, equippedItemId, unlockItem, equipItem, unequipItem }),
-    [equippedItemId, equipItem, ownedItemIds, ready, unequipItem, unlockItem]);
+  const ownedItemIds = useMemo(() => items.filter((item) => item.owned).map((item) => item.id), [items]);
+  const equippedItem = useMemo(() => items.find((item) => item.equipped) ?? null, [items]);
+  const equippedItemId = equippedItem?.id ?? null;
+
+  const value = useMemo(
+    () => ({ ready, items, ownedItemIds, equippedItem, equippedItemId, refreshShop, purchaseItem, equipItem, unequipItem }),
+    [equipItem, equippedItem, equippedItemId, items, ownedItemIds, purchaseItem, ready, refreshShop, unequipItem],
+  );
+
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 }
 

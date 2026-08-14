@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 
-export const createStyles = (colors) => StyleSheet.create({
+export const createStyles = (colors, isDark) => StyleSheet.create({
   backdrop: {
     flex: 1,
     alignItems: 'center',
@@ -28,9 +28,9 @@ export const createStyles = (colors) => StyleSheet.create({
   },
   cat: { width: 245, height: 245 },
   copy: { alignItems: 'center', gap: spacing.xs, marginTop: -spacing.sm },
-  title: { ...typography.title, color: colors.textPrimary, textAlign: 'center' },
-  message: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  hint: { ...typography.label, color: colors.primary, textAlign: 'center', marginTop: spacing.xs },
+  title: { ...typography.title, color: isDark ? colors.white : colors.textPrimary, textAlign: 'center' },
+  message: { ...typography.body, color: isDark ? colors.white : colors.textSecondary, textAlign: 'center' },
+  hint: { ...typography.label, color: isDark ? colors.white : colors.primary, textAlign: 'center', marginTop: spacing.xs },
   claimButton: {
     minWidth: 210,
     minHeight: 54,

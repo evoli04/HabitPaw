@@ -1,35 +1,38 @@
 export const SHOP_ITEMS = [
   {
-    id: 'bow',
+    id: 'bowtie',
     name: 'Papyon',
     description: 'Paw için sevimli ve şık bir papyon.',
     price: 60,
-    image: require('../../assets/shopping/tie.png'),
-    previewStyle: { width: 54, height: 36, left: 21, top: 52 },
+    shopImage: require('../../assets/accessories/bowtie.png'),
+    previewScale: 3.6,
   },
   {
     id: 'medal',
     name: 'Madalya',
     description: 'Tamamlanan alışkanlıkların gurur madalyası.',
     price: 120,
-    image: require('../../assets/shopping/medal.png'),
-    previewStyle: { width: 50, height: 36, left: 23, top: 53 },
+    shopImage: require('../../assets/accessories/medal.png'),
+    previewScale: 3.5,
   },
   {
     id: 'party_hat',
     name: 'Parti şapkası',
     description: 'Kutlama günlerinde Paw’ın neşesine neşe katar.',
     price: 180,
-    image: require('../../assets/shopping/partyhat.png'),
-    previewStyle: { width: 48, height: 42, left: 24, top: -3 },
+    shopImage: require('../../assets/accessories/party-hat.png'),
+    previewScale: 2.7,
+    previewOffsetY: 92,
   },
   {
     id: 'gold_necklace',
     name: 'Altın kolye',
     description: 'Mağazanın en değerli ve en özel aksesuarı.',
     price: 300,
-    image: require('../../assets/shopping/gold.png'),
-    previewStyle: { width: 60, height: 60, left: 18, top: 39 },
+    shopImage: require('../../assets/accessories/gold-necklace.png'),
+    previewScale: 3.4,
     premium: true,
   },
 ];
+
+export const SHOP_ITEM_BY_ID = Object.fromEntries(SHOP_ITEMS.map((item) => [item.id, item]));

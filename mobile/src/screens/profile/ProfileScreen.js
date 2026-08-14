@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppButton from '../../components/common/AppButton';
 import AppBackground from '../../components/common/AppBackground';
-import CatCharacter from '../../components/cat/CatCharacter';
+import CatAvatar from '../../components/cat/CatAvatar';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { createStyles } from './ProfileScreen.styles';
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CoinIcon from '../../components/coins/CoinIcon';
 import { ROUTES } from '../../constants/routes';
 import { useCoins } from '../../contexts/CoinContext';
+import { useShop } from '../../contexts/ShopContext';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'Sistem' },
@@ -31,6 +32,7 @@ export default function ProfileScreen({ navigation }) {
   const profileQuery = useQuery({ queryKey: ['profile'], queryFn: getProfile });
   const displayName = getDisplayName(user, profileQuery.data);
   const { balance } = useCoins();
+  const { equippedItem } = useShop();
 
   const logout = async () => {
     setLoading(true);
@@ -48,7 +50,7 @@ export default function ProfileScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <CatCharacter mood="happy" size="small" />
+          <CatAvatar equippedItem={equippedItem} size={96} />
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{user?.email || 'E-posta bulunamadı'}</Text>
         </View>

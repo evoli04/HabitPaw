@@ -3,11 +3,11 @@ import { ActivityIndicator, Animated, Image, Modal, Pressable, Text, View } from
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { createStyles } from './CelebrationPopup.styles';
 import CoinIcon from '../coins/CoinIcon';
-import { HABIT_REWARD } from '../../contexts/CoinContext';
+import { getCatImage } from '../../constants/catImages';
 
-export default function CelebrationPopup({ visible, habitTitle, claiming, onClaim, onClose }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+export default function CelebrationPopup({ visible, habitTitle, reward, claiming, onClaim, onClose }) {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.72)).current;
   const translateY = useRef(new Animated.Value(24)).current;
@@ -62,7 +62,7 @@ export default function CelebrationPopup({ visible, habitTitle, claiming, onClai
           <Text style={[styles.confetti, styles.confettiTop]}>✧</Text>
           <Animated.View style={{ transform: [{ rotate: rotation }] }}>
             <Image
-              source={require('../../../assets/cats/celebratingcat.png')}
+              source={getCatImage('excited')}
               resizeMode="contain"
               style={styles.cat}
             />
@@ -84,7 +84,7 @@ export default function CelebrationPopup({ visible, habitTitle, claiming, onClai
               ) : (
                 <>
                   <CoinIcon size={30} />
-                  <Text style={styles.claimButtonText}>{HABIT_REWARD} Coin Al</Text>
+                  <Text style={styles.claimButtonText}>{reward} Coin Al</Text>
                 </>
               )}
             </Pressable>

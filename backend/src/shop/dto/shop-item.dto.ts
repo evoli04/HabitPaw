@@ -6,7 +6,7 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class ShopItemDto {
   @ApiProperty({
-    example: 'bow',
+    example: 'bowtie',
     description: 'Stable catalog id — the key the client maps to a local image',
   })
   id: string;

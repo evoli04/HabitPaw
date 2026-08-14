@@ -18,31 +18,31 @@ export interface ShopCatalogItem {
  */
 export const SHOP_CATALOG: ShopCatalogItem[] = [
   {
-    id: 'bow',
+    id: 'bowtie',
     name: 'Papyon',
     description: 'Paw için sevimli ve şık bir papyon.',
-    price: 60,
+    price: 2000,
     premium: false,
   },
   {
     id: 'medal',
     name: 'Madalya',
     description: 'Tamamlanan alışkanlıkların gurur madalyası.',
-    price: 120,
+    price: 3700,
     premium: false,
   },
   {
     id: 'party_hat',
     name: 'Parti şapkası',
     description: 'Kutlama günlerinde Paw’ın neşesine neşe katar.',
-    price: 180,
+    price: 3000,
     premium: false,
   },
   {
     id: 'gold_necklace',
     name: 'Altın kolye',
     description: 'Mağazanın en değerli ve en özel aksesuarı.',
-    price: 300,
+    price: 7000,
     premium: true,
   },
 ];
