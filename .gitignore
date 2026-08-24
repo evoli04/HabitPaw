@@ -2,6 +2,12 @@
 node_modules
 .claude
 
+# documents
+backend/docs/HabitPawGradientPurple-v2.pdf
+backend/docs/HabitPawGradientPurple-v2.pptx
+backend/docs/HabitPawGradientPurple.pdf
+
+
 # compiled output
 dist
 node_modules
