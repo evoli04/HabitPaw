@@ -51,6 +51,8 @@ Behaviour is identical: the old `upsert` passed `update: {}`, so an existing pro
 
 The set is unbounded, which is fine at this scale (bounded by distinct users per process, and a restart just re-checks each once). If the app ever deletes profile rows at runtime, this cache becomes stale and needs invalidation.
 
+**Superseded 2026-10-08:** `ensureProfile` and the set are gone. A database trigger on `auth.users` (migration `20261008200000_create_profile_on_signup`) creates the profile when Supabase Auth creates the user, so `JwtStrategy.validate` does no database work at all — not even once per user per process. Existing users were backfilled by the same migration. Measured afterwards (warm, local backend → Frankfurt): `GET /habits` 130–250 ms, `GET /habits/today` 240–260 ms, each with zero `profiles` queries in the log.
+
 ### `$connect()` is awaited
 
 [`prisma.service.ts`](../src/prisma/prisma.service.ts). Nest used to finish booting while the connection was still opening, so the first request paid ~1.1 s. This matters much more once deployed on a platform that sleeps idle instances.
@@ -97,6 +99,21 @@ Note the deliberate absence of `?pgbouncer=true` — that flag is what disables 
 - **No indexes added, no query plans tuned.** The dataset is tiny; the database is not the constraint. Adding indexes here would be cargo cult.
 - **No caching layer.** Response caching would hide the real problem (distance) and introduce invalidation bugs for data that changes on every user action.
 - **Nothing in the HTTP layer.** `GET /health` at 2 ms rules it out.
+
+## 2026-10-08 follow-up
+
+Measured with `PERF_LOG=true`, which logs per-request wall time (Express middleware, so it includes the JWT guard), every Prisma query with its duration, and Gemini latency with token counts.
+
+| Change | Before | After |
+|---|---|---|
+| Profile creation moved to an `auth.users` trigger (see `ensureProfile` above) | 0–1 queries per request | 0 |
+| `POST /habits/:id/complete` as one raw SQL statement (ownership CTE + `INSERT … ON CONFLICT DO NOTHING` + existing-row fallback) | 6 queries (`findFirst`, then `upsert` = BEGIN/SELECT/INSERT/SELECT/COMMIT), 0.6–1.2 s | 1 query, 150–370 ms |
+| `DELETE /habits/:id/complete` as one raw SQL statement (`owned` CTE + data-modifying `deleted` CTE) | 2 queries (`findFirst` + `deleteMany`) | 1 query, 140–290 ms |
+| `PATCH /habits/:id` as `update({ where: { id, userId } })`, P2025 → 404 | 2 queries (`findFirst` + `update`) | 1 query, 200–520 ms. `updateManyAndReturn` was tried first and measured at 3 (BEGIN/UPDATE/COMMIT) |
+| `DELETE /habits/:id` as `deleteMany({ where: { id, userId } })`, `count === 0` → 404 | 2 queries | 1 query, 120–290 ms |
+| Gemini `thinkingLevel: MINIMAL` (`GEMINI_THINKING_LEVEL`) | `generateContent` 8–9.4 s, ~1450 thought tokens | 3.2 s, 0 thought tokens; `POST /ai/habit-suggestions` 11.75 s → 4.6 s |
+
+Note: Prisma compiles an `upsert` whose `update` is empty into an interactive transaction rather than a native `INSERT … ON CONFLICT`. Avoid it on hot paths.
 
 ## The remaining factor is distance
 

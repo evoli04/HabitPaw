@@ -79,7 +79,7 @@ if (updated.count === 0) return null;
 ## Implementation notes
 
 - **`HABIT_REWARD` is returned by `GET /coins`** so the client can render "30 Coin Al" without hardcoding the number. The mobile constant is currently duplicated in `CoinContext.js`; it should read this field instead.
-- **`getWallet` tolerates a missing profile** (`?? 0`). In practice `ensureProfile` in [auth.service.ts](../../src/auth/auth.service.ts) upserts the row on every authenticated request, so this is defensive only.
+- **`getWallet` tolerates a missing profile** (`?? 0`). In practice the `on_auth_user_created` trigger creates the row when the Supabase user is created (see [database.md](../database.md)), so this is defensive only.
 - **`rewardDate` is serialised as `YYYY-MM-DD`**, not a timestamp — it is a `@db.Date` column and a time component would be meaningless.
 
 ## Known limitations

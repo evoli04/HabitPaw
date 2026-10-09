@@ -46,7 +46,6 @@ client
   → JwtAuthGuard (global, APP_GUARD in AuthModule)
       - skipped if route/controller has @Public()
       - otherwise: verifies bearer JWT against Supabase JWKS (ES256)
-      - on success: AuthService.ensureProfile(sub) — JIT-upserts a Profile row
       - attaches AuthenticatedUser {id, email} to request.user
   → Controller (@CurrentUser() reads request.user)
   → Service (business logic, always scoped by userId)
@@ -55,7 +54,7 @@ client
 
 ## Auth flow
 
-Supabase is the identity provider. The intended production flow is entirely client-side: a frontend uses the Supabase SDK to register/login/refresh, and sends the resulting JWT as `Authorization: Bearer <token>` to this API. **The backend has no production login/register endpoints** — it only verifies tokens (`src/auth/strategies/jwt.strategy.ts`) and does just-in-time profile provisioning.
+Supabase is the identity provider. The intended production flow is entirely client-side: a frontend uses the Supabase SDK to register/login/refresh, and sends the resulting JWT as `Authorization: Bearer <token>` to this API. **The backend has no production login/register endpoints** — it only verifies tokens (`src/auth/strategies/jwt.strategy.ts`). The `profiles` row is created by a database trigger on `auth.users` (migration `20261008200000_create_profile_on_signup`), not by the backend.
 
 **Exception — dev/testing login for Swagger.** `POST /api/auth/login` (`src/auth/auth.controller.ts`) proxies Supabase's password-grant Auth REST API so a developer can get a token *from inside Swagger* instead of using curl/Postman against Supabase directly:
 
@@ -100,6 +99,8 @@ Validated in `src/config/env.validation.ts` (Joi). Template in `.env.example`.
 | `SUPABASE_PUBLISHABLE_KEY` | yes | — | Supabase public API key, sent as `apikey` header when proxying login |
 | `GEMINI_API_KEY` | yes | — | Google AI Studio key used by the AI module |
 | `GEMINI_MODEL` | yes | — | must be a model the key can still call — retired ids 404, see [docs/modules/ai.md](docs/modules/ai.md#troubleshooting) |
+| `GEMINI_THINKING_LEVEL` | no | `MINIMAL` | `MINIMAL`/`LOW`/`MEDIUM`/`HIGH`, or empty for the model default — see [docs/modules/ai.md](docs/modules/ai.md) |
+| `PERF_LOG` | no | `false` | logs per-request time, every SQL query with its duration, and Gemini latency/token counts |
 | `AI_THROTTLE_LIMIT` | no | `5` | requests per window on `/api/ai/*` |
 | `AI_THROTTLE_TTL_MS` | no | `3600000` | throttle window in ms |
 | `CORS_ORIGIN` | no | `*` | **currently unused** — see [Known gaps](#known-gaps), `app.enableCors()` is never called |

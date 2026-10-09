@@ -14,7 +14,7 @@ Two connection strings (`.env`): `DATABASE_URL` (pooled, transaction mode, port 
 ## Models
 
 ### `Profile` (table `profiles`)
-Mirrors a Supabase `auth.users` row. `id` is the Supabase `auth.uid()` value — no default, set explicitly by the app (see `AuthService.ensureProfile`, [modules/auth.md](modules/auth.md)) rather than Prisma-generated.
+Mirrors a Supabase `auth.users` row. `id` is the Supabase `auth.uid()` value — no default, set by the `on_auth_user_created` trigger on `auth.users` (function `public.handle_new_user()`, migration `20261008200000_create_profile_on_signup`) rather than Prisma-generated. The trigger copies `raw_user_meta_data->>'name'` into `name`. The migration references the `auth` schema, so it only runs against a Supabase database — `prisma migrate dev` with a plain-Postgres shadow database will fail on it.
 
 | Field | Type | Notes |
 |---|---|---|
