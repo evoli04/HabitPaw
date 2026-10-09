@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { HabitCompletion, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CoinsService } from '../coins/coins.service';
 import { ClaimRewardResponseDto } from '../coins/dto/claim-reward.dto';
@@ -76,32 +77,83 @@ export class HabitsService {
     return habit;
   }
 
+  /**
+   * Ownership is part of the `where`, so this is one `UPDATE … RETURNING`
+   * instead of `findOneOrThrow` + `update`. No matching row (unknown id or
+   * someone else's habit) makes Prisma throw P2025, mapped to a 404.
+   *
+   * Not `updateManyAndReturn`: Prisma wraps that in BEGIN/COMMIT, three
+   * round trips instead of one.
+   */
   async update(userId: string, id: string, dto: UpdateHabitDto) {
-    await this.findOneOrThrow(userId, id);
-    return this.prisma.habit.update({
-      where: { id },
-      data: {
-        title: dto.title,
-        description: dto.description,
-        frequency: dto.frequency,
-        reminderTime: toTimeDate(dto.reminderTime),
-      },
-    });
+    try {
+      return await this.prisma.habit.update({
+        where: { id, userId },
+        data: {
+          title: dto.title,
+          description: dto.description,
+          frequency: dto.frequency,
+          reminderTime: toTimeDate(dto.reminderTime),
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Habit not found');
+      }
+      throw error;
+    }
   }
 
+  /** Same pattern as `update`: one `DELETE … WHERE id AND user_id`. */
   async remove(userId: string, id: string) {
-    await this.findOneOrThrow(userId, id);
-    await this.prisma.habit.delete({ where: { id } });
+    const { count } = await this.prisma.habit.deleteMany({
+      where: { id, userId },
+    });
+    if (count === 0) throw new NotFoundException('Habit not found');
   }
 
-  async complete(userId: string, id: string) {
-    await this.findOneOrThrow(userId, id);
+  /**
+   * Marks the habit done for today. Idempotent: a second call returns the
+   * existing completion.
+   *
+   * One statement, one round trip. The previous `findOneOrThrow` + `upsert`
+   * cost six — Prisma runs an `upsert` with an empty `update` as
+   * BEGIN / SELECT / INSERT / SELECT / COMMIT.
+   *
+   * - `owned` carries the ownership check: for someone else's habit (or an
+   *   unknown id) it is empty, nothing is inserted and the result is a 404.
+   * - `inserted` is empty when today's row already exists (ON CONFLICT).
+   *   All CTEs see the same snapshot, so the final `UNION ALL` branch finds
+   *   that pre-existing row but can never see the one inserted here — exactly
+   *   one row comes back either way.
+   */
+  async complete(userId: string, id: string): Promise<HabitCompletion> {
     const completionDate = todayDateOnly();
-    return this.prisma.habitCompletion.upsert({
-      where: { habitId_completionDate: { habitId: id, completionDate } },
-      update: {},
-      create: { habitId: id, userId, completionDate },
-    });
+    const rows = await this.prisma.$queryRaw<HabitCompletion[]>`
+      with owned as (
+        select id from habits where id = ${id}::uuid and user_id = ${userId}::uuid
+      ),
+      inserted as (
+        insert into habit_completions (id, habit_id, user_id, completion_date)
+        select gen_random_uuid(), owned.id, ${userId}::uuid, ${completionDate}::date
+          from owned
+        on conflict (habit_id, completion_date) do nothing
+        returning id, habit_id, user_id, completion_date, created_at
+      )
+      select id, habit_id as "habitId", user_id as "userId",
+             completion_date as "completionDate", created_at as "createdAt"
+        from inserted
+      union all
+      select hc.id, hc.habit_id, hc.user_id, hc.completion_date, hc.created_at
+        from habit_completions hc
+        join owned on owned.id = hc.habit_id
+       where hc.completion_date = ${completionDate}::date
+    `;
+    if (rows.length === 0) throw new NotFoundException('Habit not found');
+    return rows[0];
   }
 
   /**
@@ -139,12 +191,30 @@ export class HabitsService {
     return this.coins.awardHabitReward(userId, id);
   }
 
+  /**
+   * Removes today's completion. One statement, like `complete`.
+   *
+   * A plain `deleteMany` cannot tell "not your habit" (404) from "owned but
+   * not completed today" (204, nothing to do), so ownership comes back from
+   * the `owned` CTE. A data-modifying CTE always runs to completion, even
+   * though the outer query never reads `deleted`.
+   */
   async uncomplete(userId: string, id: string) {
-    await this.findOneOrThrow(userId, id);
     const completionDate = todayDateOnly();
-    await this.prisma.habitCompletion.deleteMany({
-      where: { habitId: id, completionDate },
-    });
+    const [{ owned }] = await this.prisma.$queryRaw<{ owned: boolean }[]>`
+      with owned as (
+        select id from habits where id = ${id}::uuid and user_id = ${userId}::uuid
+      ),
+      deleted as (
+        delete from habit_completions hc
+         using owned
+         where hc.habit_id = owned.id
+           and hc.completion_date = ${completionDate}::date
+        returning hc.id
+      )
+      select exists (select 1 from owned) as owned
+    `;
+    if (!owned) throw new NotFoundException('Habit not found');
   }
 
   async getTodayForUser(userId: string) {
