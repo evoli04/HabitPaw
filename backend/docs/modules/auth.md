@@ -18,7 +18,7 @@
 
 - Extracts bearer token from `Authorization` header (`ExtractJwt.fromAuthHeaderAsBearerToken()`).
 - `algorithms: ['ES256']` — Supabase's default asymmetric signing algorithm.
-- Signing key resolved at request time via `jwks-rsa`'s `passportJwtSecret` against `SUPABASE_JWKS_URL` (read from raw `process.env`, not `ConfigService` — see [Architecture.md known gaps](../../Architecture.md#known-gaps)), cached, rate-limited to 5 req/min.
+- Signing key resolved via a `jwks-rsa` `JwksClient` owned by the strategy against `SUPABASE_JWKS_URL` (read from raw `process.env`, not `ConfigService` — see [Architecture.md known gaps](../../Architecture.md#known-gaps)), cached, rate-limited to 5 req/min. The strategy builds the client itself rather than using `passportJwtSecret` so `onModuleInit` can fetch the keys at startup; otherwise the first authenticated request paid the JWKS fetch (~600 ms). A failed warm-up only logs a warning. The secret provider mirrors `passportJwtSecret`: unparsable token or unknown `kid` → no key → 401.
 - **Does not check `iss`/`aud` claims** — signature validity against the project's JWKS is the only check.
 - `validate(payload)` reads `sub` (Supabase user id) and `email`; returns `{ id: sub, email }`, which Passport attaches to `request.user`. It does not touch the database: the `profiles` row is created by the `on_auth_user_created` trigger when Supabase Auth inserts the user (see [database.md](../database.md)).
 

@@ -111,6 +111,8 @@ Measured with `PERF_LOG=true`, which logs per-request wall time (Express middlew
 | `DELETE /habits/:id/complete` as one raw SQL statement (`owned` CTE + data-modifying `deleted` CTE) | 2 queries (`findFirst` + `deleteMany`) | 1 query, 140–290 ms |
 | `PATCH /habits/:id` as `update({ where: { id, userId } })`, P2025 → 404 | 2 queries (`findFirst` + `update`) | 1 query, 200–520 ms. `updateManyAndReturn` was tried first and measured at 3 (BEGIN/UPDATE/COMMIT) |
 | `DELETE /habits/:id` as `deleteMany({ where: { id, userId } })`, `count === 0` → 404 | 2 queries | 1 query, 120–290 ms |
+| `GET /habits/today` with a filtered `_count` instead of `include: { completions }` | 2 queries, 240–260 ms | 1 query, 110–150 ms |
+| JWKS keys fetched in `JwtStrategy.onModuleInit` | first authenticated request after boot ~1.19 s | ~280 ms (warm-up takes ~600 ms at startup instead) |
 | Gemini `thinkingLevel: MINIMAL` (`GEMINI_THINKING_LEVEL`) | `generateContent` 8–9.4 s, ~1450 thought tokens | 3.2 s, 0 thought tokens; `POST /ai/habit-suggestions` 11.75 s → 4.6 s |
 
 Note: Prisma compiles an `upsert` whose `update` is empty into an interactive transaction rather than a native `INSERT … ON CONFLICT`. Avoid it on hot paths.
