@@ -219,7 +219,10 @@ export default function AiHabitAssistant() {
                     style={({ pressed }) => [styles.primaryButton, (pressed || loading) && styles.pressed]}
                   >
                     {loading ? (
-                      <ActivityIndicator color={colors.white} />
+                      <>
+                        <ActivityIndicator color={colors.white} />
+                        <Text style={styles.primaryButtonText}>Paw öneriler hazırlıyor…</Text>
+                      </>
                     ) : (
                       <>
                         <Ionicons name="sparkles" size={18} color={colors.white} />
