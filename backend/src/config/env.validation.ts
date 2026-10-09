@@ -14,4 +14,5 @@ export const envValidationSchema = Joi.object({
     AI_THROTTLE_TTL_MS: Joi.number().default(3600000),
     CORS_ORIGIN: Joi.string().default("*"),
     SWAGGER_ENABLED: Joi.bool().default(true),
+    PERF_LOG: Joi.bool().default(false),
 })

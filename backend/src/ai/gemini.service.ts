@@ -31,6 +31,7 @@ export class GeminiService {
   /** Runs a prompt in JSON mode and returns the parsed payload. */
   async generateJson<T>(prompt: string, responseSchema: Schema): Promise<T> {
     let rawText: string | undefined;
+    const start = Date.now();
 
     try {
       const response = await this.client.models.generateContent({
@@ -39,7 +40,21 @@ export class GeminiService {
         config: { responseMimeType: 'application/json', responseSchema },
       });
       rawText = response.text;
+
+      if (process.env.PERF_LOG === 'true') {
+        // thoughtsTokenCount shows how much of the latency is the model "thinking".
+        const usage = response.usageMetadata;
+        this.logger.log(
+          `generateContent ${Date.now() - start}ms model=${this.model} ` +
+            `promptTokens=${usage?.promptTokenCount ?? '?'} ` +
+            `outputTokens=${usage?.candidatesTokenCount ?? '?'} ` +
+            `thoughtsTokens=${usage?.thoughtsTokenCount ?? 0}`,
+        );
+      }
     } catch (error) {
+      if (process.env.PERF_LOG === 'true') {
+        this.logger.log(`generateContent failed after ${Date.now() - start}ms`);
+      }
       throw this.toHttpException(error);
     }
 
