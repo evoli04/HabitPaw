@@ -10,6 +10,9 @@ export const envValidationSchema = Joi.object({
     SUPABASE_PUBLISHABLE_KEY: Joi.string().required(),
     GEMINI_API_KEY: Joi.string().required(),
     GEMINI_MODEL: Joi.string().required(),
+    GEMINI_THINKING_LEVEL: Joi.string()
+        .valid("MINIMAL", "LOW", "MEDIUM", "HIGH", "")
+        .default("MINIMAL"),
     AI_THROTTLE_LIMIT: Joi.number().default(5),
     AI_THROTTLE_TTL_MS: Joi.number().default(3600000),
     CORS_ORIGIN: Joi.string().default("*"),
