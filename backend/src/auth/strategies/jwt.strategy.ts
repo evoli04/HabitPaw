@@ -2,18 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
-import { AuthService } from '../auth.service';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-user.interface';
 
 interface SupabaseJwtPayload {
     sub: string;
     email: string;
-    user_metadata?: { name?: string };
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor(private readonly authService: AuthService) {
+    constructor() {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             algorithms: ['ES256'],
@@ -26,8 +24,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: SupabaseJwtPayload): Promise<AuthenticatedUser> {
-        await this.authService.ensureProfile(payload.sub, payload.user_metadata?.name);
+    /**
+     * No database access here: the `profiles` row is created by the
+     * `on_auth_user_created` trigger when Supabase Auth inserts the user
+     * (migration `20261008200000_create_profile_on_signup`).
+     */
+    validate(payload: SupabaseJwtPayload): AuthenticatedUser {
         return {
             id: payload.sub,
             email: payload.email,
