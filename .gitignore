@@ -2,6 +2,12 @@
 node_modules
 .claude
 
+# documents
+backend/docs/HabitPawGradientPurple-v2.pdf
+backend/docs/HabitPawGradientPurple-v2.pptx
+backend/docs/HabitPawGradientPurple.pdf
+
+
 # compiled output
 dist
 node_modules
@@ -46,6 +52,13 @@ coverage
 .env.production.local
 .env.local
 
+# Expo
+.expo/
+expo-env.d.ts
+
+# SDK karar notu - takim ile konusulana kadar yerel
+/SDK-KARARI.md
+
 # temp directory
 .temp
 .tmp
@@ -60,3 +73,8 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 generated/prisma
+
+# Supabase
+# Veri dokumu - gercek kullanici satirlari icerir, commit'lenmemeli.
+# (schema.sql commit'li ve kalabilir: sadece DDL, veri yok.)
+/supabase/data.sql

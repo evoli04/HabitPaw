@@ -7,7 +7,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiError, GoogleGenAI, type Schema } from '@google/genai';
+import {
+  ApiError,
+  GoogleGenAI,
+  ThinkingLevel,
+  type Schema,
+} from '@google/genai';
 
 /**
  * Thin wrapper around the Gemini SDK: owns the client, the model name and the
@@ -19,6 +24,14 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly client: GoogleGenAI;
   readonly model: string;
+  /**
+   * Habit suggestions are short structured JSON; measured on gemini-3.5-flash,
+   * the default thinking spent ~1450 tokens and ~8–9 s per call, while MINIMAL
+   * returned the same number of suggestions in ~5 s. Unset GEMINI_THINKING_LEVEL
+   * (empty string) to fall back to the model default, e.g. for a model that
+   * does not accept thinkingLevel.
+   */
+  private readonly thinkingLevel?: ThinkingLevel;
 
   constructor(private readonly config: ConfigService) {
     this.client = new GoogleGenAI({
@@ -26,20 +39,44 @@ export class GeminiService {
       vertexai: false, // force the AI Studio endpoint, not Vertex AI
     });
     this.model = this.config.getOrThrow<string>('GEMINI_MODEL');
+    this.thinkingLevel =
+      (this.config.get<string>('GEMINI_THINKING_LEVEL') as ThinkingLevel) ||
+      undefined;
   }
 
   /** Runs a prompt in JSON mode and returns the parsed payload. */
   async generateJson<T>(prompt: string, responseSchema: Schema): Promise<T> {
     let rawText: string | undefined;
+    const start = Date.now();
 
     try {
       const response = await this.client.models.generateContent({
         model: this.model,
         contents: prompt,
-        config: { responseMimeType: 'application/json', responseSchema },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema,
+          ...(this.thinkingLevel && {
+            thinkingConfig: { thinkingLevel: this.thinkingLevel },
+          }),
+        },
       });
       rawText = response.text;
+
+      if (process.env.PERF_LOG === 'true') {
+        // thoughtsTokenCount shows how much of the latency is the model "thinking".
+        const usage = response.usageMetadata;
+        this.logger.log(
+          `generateContent ${Date.now() - start}ms model=${this.model} ` +
+            `promptTokens=${usage?.promptTokenCount ?? '?'} ` +
+            `outputTokens=${usage?.candidatesTokenCount ?? '?'} ` +
+            `thoughtsTokens=${usage?.thoughtsTokenCount ?? 0}`,
+        );
+      }
     } catch (error) {
+      if (process.env.PERF_LOG === 'true') {
+        this.logger.log(`generateContent failed after ${Date.now() - start}ms`);
+      }
       throw this.toHttpException(error);
     }
 

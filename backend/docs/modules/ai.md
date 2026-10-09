@@ -92,6 +92,8 @@ Fix: set `GEMINI_MODEL` to a model the key can actually call. Known state for th
 
 Current setting: `GEMINI_MODEL=gemini-3.5-flash`.
 
+`GEMINI_THINKING_LEVEL` (default `MINIMAL`; `LOW`/`MEDIUM`/`HIGH`, or empty for the model default) is sent as `thinkingConfig.thinkingLevel`. Measured 2026-10-08 on `gemini-3.5-flash` with the suggestion prompt: default thinking ~8–9 s and ~1450 thought tokens; `MINIMAL` ~3–5 s, 0 thought tokens, same number of suggestions; `LOW` ~6 s. `gemini-3.5-flash-lite` was slower (9–13 s) and returned fewer suggestions. If a future `GEMINI_MODEL` rejects `thinkingLevel` with a 400, set the variable to an empty string.
+
 To re-check which models a key can call, list them and then actually call one — listing alone
 proves nothing:
 

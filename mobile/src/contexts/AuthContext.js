@@ -1,12 +1,24 @@
-import { createContext, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as authService from '../services/authService';
 import { supabase, supabaseConfigError } from '../services/supabaseClient';
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState(null);
   const [initializing, setInitializing] = useState(true);
+  const activeUserIdRef = useRef(null);
+
+  const applySession = useCallback((nextSession) => {
+    const nextUserId = nextSession?.user?.id ?? null;
+    if (activeUserIdRef.current !== nextUserId) {
+      queryClient.clear();
+      activeUserIdRef.current = nextUserId;
+    }
+    setSession(nextSession);
+  }, [queryClient]);
 
   useEffect(() => {
     let mounted = true;
@@ -18,15 +30,15 @@ export function AuthProvider({ children }) {
 
     authService
       .getSession()
-      .then((value) => mounted && setSession(value))
-      .catch(() => mounted && setSession(null))
+      .then((value) => mounted && applySession(value))
+      .catch(() => mounted && applySession(null))
       .finally(() => mounted && setInitializing(false));
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (mounted) {
-        setSession(nextSession);
+        applySession(nextSession);
         setInitializing(false);
       }
     });
@@ -35,7 +47,7 @@ export function AuthProvider({ children }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession]);
 
   const value = useMemo(
     () => ({

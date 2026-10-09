@@ -3,15 +3,19 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { requestTimingMiddleware } from './common/middleware/request-timing.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  if (configService.get<boolean>('PERF_LOG')) {
+    app.use(requestTimingMiddleware);
+  }
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
 
-  const configService = app.get(ConfigService);
   if (configService.get<boolean>('SWAGGER_ENABLED')) {
     const config = new DocumentBuilder()
       .setTitle('HabitPaw API')

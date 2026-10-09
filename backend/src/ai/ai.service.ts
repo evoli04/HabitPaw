@@ -132,20 +132,20 @@ export class AiService {
       );
     }
 
-    const created: Awaited<ReturnType<HabitsService['create']>>[] = [];
-    for (const index of unique) {
-      const suggestion = stored[index];
-      created.push(
-        await this.habits.create(userId, {
+    // One batched round trip rather than one per suggestion — see
+    // `HabitsService.createMany`.
+    return this.habits.createMany(
+      userId,
+      unique.map((index) => {
+        const suggestion = stored[index];
+        return {
           title: suggestion.title,
           description: suggestion.description,
           frequency: suggestion.frequency,
           reminderTime: suggestion.reminderTime,
-        }),
-      );
-    }
-
-    return created;
+        };
+      }),
+    );
   }
 }
 

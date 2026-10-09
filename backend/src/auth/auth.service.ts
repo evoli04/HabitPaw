@@ -1,23 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
-  ) {}
-
-  async ensureProfile(userId: string, name?: string) {
-    return this.prisma.profile.upsert({
-      where: { id: userId },
-      update: {},
-      create: { id: userId, name },
-    });
-  }
+  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Dev/testing convenience only — proxies Supabase's password-grant Auth API so a

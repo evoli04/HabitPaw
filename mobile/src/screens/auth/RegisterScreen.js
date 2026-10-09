@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,7 +16,8 @@ import AppInput from '../../components/common/AppInput';
 import CatCharacter from '../../components/cat/CatCharacter';
 import { ROUTES } from '../../constants/routes';
 import { useAuth } from '../../hooks/useAuth';
-import { styles } from './RegisterScreen.styles';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { createStyles } from './RegisterScreen.styles';
 import { useAppDialog } from '../../contexts/DialogContext';
 
 const schema = z
@@ -32,6 +33,8 @@ const schema = z
   });
 
 export default function RegisterScreen({ navigation }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { showDialog } = useAppDialog();
   const { signUp, configurationError } = useAuth();
   const [formError, setFormError] = useState('');

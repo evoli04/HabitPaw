@@ -7,9 +7,9 @@
 | File | Role |
 |---|---|
 | `auth.module.ts` | registers `PassportModule`, `AuthController`, `AuthService`, `JwtStrategy`; registers `JwtAuthGuard` as the **global** guard (`APP_GUARD`) — every route requires auth unless `@Public()` |
-| `auth.service.ts` | `ensureProfile(userId, name?)` — JIT upsert of a `Profile` row; `login(dto)` — proxies Supabase password-grant auth |
+| `auth.service.ts` | `login(dto)` — proxies Supabase password-grant auth |
 | `auth.controller.ts` | `POST /api/auth/login` (`@Public()`) — dev/testing only |
-| `strategies/jwt.strategy.ts` | Passport strategy: verifies bearer JWT via Supabase JWKS (ES256), calls `ensureProfile`, returns `AuthenticatedUser` |
+| `strategies/jwt.strategy.ts` | Passport strategy: verifies bearer JWT via Supabase JWKS (ES256), returns `AuthenticatedUser` — no database access |
 | `guards/jwt-auth.guard.ts` | extends `AuthGuard('jwt')`; short-circuits to allow when `@Public()` metadata is present on the handler or class |
 | `dto/login.dto.ts` | `{ email, password }` request body for the dev login endpoint. `password` is only checked non-empty — it previously required 6+ chars, which 400'd accounts that Supabase itself accepts (password policy belongs to signup, which Supabase owns). |
 | `dto/login-response.dto.ts` | typed Supabase token response shape (`access_token`, `refresh_token`, `expires_in`, `token_type`, `user`) |
@@ -18,9 +18,9 @@
 
 - Extracts bearer token from `Authorization` header (`ExtractJwt.fromAuthHeaderAsBearerToken()`).
 - `algorithms: ['ES256']` — Supabase's default asymmetric signing algorithm.
-- Signing key resolved at request time via `jwks-rsa`'s `passportJwtSecret` against `SUPABASE_JWKS_URL` (read from raw `process.env`, not `ConfigService` — see [Architecture.md known gaps](../../Architecture.md#known-gaps)), cached, rate-limited to 5 req/min.
+- Signing key resolved via a `jwks-rsa` `JwksClient` owned by the strategy against `SUPABASE_JWKS_URL` (read from raw `process.env`, not `ConfigService` — see [Architecture.md known gaps](../../Architecture.md#known-gaps)), cached, rate-limited to 5 req/min. The strategy builds the client itself rather than using `passportJwtSecret` so `onModuleInit` can fetch the keys at startup; otherwise the first authenticated request paid the JWKS fetch (~600 ms). A failed warm-up only logs a warning. The secret provider mirrors `passportJwtSecret`: unparsable token or unknown `kid` → no key → 401.
 - **Does not check `iss`/`aud` claims** — signature validity against the project's JWKS is the only check.
-- `validate(payload)` reads `sub` (Supabase user id), `email`, `user_metadata.name`; calls `authService.ensureProfile(sub, name)`; returns `{ id: sub, email }`, which Passport attaches to `request.user`.
+- `validate(payload)` reads `sub` (Supabase user id) and `email`; returns `{ id: sub, email }`, which Passport attaches to `request.user`. It does not touch the database: the `profiles` row is created by the `on_auth_user_created` trigger when Supabase Auth inserts the user (see [database.md](../database.md)).
 
 ## `AuthService.login()` (dev endpoint backing)
 
