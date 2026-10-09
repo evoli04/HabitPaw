@@ -221,21 +221,30 @@ export class HabitsService {
     const applicableFrequencies = FREQUENCIES_BY_WEEKDAY[new Date().getUTCDay()];
     const completionDate = todayDateOnly();
 
+    // A filtered `_count` compiles into the same SELECT (LEFT JOIN on a
+    // grouped subquery); `include: { completions }` was a second query.
+    // `userId` in the relation filter keeps that subquery on the
+    // [userId, completionDate] index instead of every user's completions.
     const habits = await this.prisma.habit.findMany({
       where: { userId, isActive: true, frequency: { in: applicableFrequencies } },
-      include: { completions: { where: { completionDate } } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        frequency: true,
+        reminderTime: true,
+        isActive: true,
+        createdAt: true,
+        _count: {
+          select: { completions: { where: { userId, completionDate } } },
+        },
+      },
       orderBy: { createdAt: 'asc' },
     });
 
-    return habits.map((habit) => ({
-      id: habit.id,
-      title: habit.title,
-      description: habit.description,
-      frequency: habit.frequency,
-      reminderTime: habit.reminderTime,
-      isActive: habit.isActive,
-      createdAt: habit.createdAt,
-      completedToday: habit.completions.length > 0,
+    return habits.map(({ _count, ...habit }) => ({
+      ...habit,
+      completedToday: _count.completions > 0,
     }));
   }
 }
